@@ -132,34 +132,7 @@ grist.onRecords(function(records) {
 
   records.forEach(r => {
 
-    /* ===== EXCLUSION MASSE SALARIALE ===== */
-    if (!r.cb) return;
-
-    const cb = String(r.cb);
-    if (cb.startsWith("3") || cb.startsWith("5") || cb.startsWith("6")) {
-      return;
-    }
-
-    const brique = r.brique || "Non défini";
-    const sous = r.sous_brique || "Non défini";
-    const act = r.activite || "Non défini";
-
-    const AE = Number(r.AE || 0);
-    const CP = Number(r.CP || 0);
-
-    totalAE += AE;
-    totalCP += CP;
-
-    if (!agg[brique]) agg[brique] = {};
-    if (!agg[brique][sous]) agg[brique][sous] = {};
-    if (!agg[brique][sous][act]) agg[brique][sous][act] = {AE:0, CP:0};
-
-    agg[brique][sous][act].AE += AE;
-    agg[brique][sous][act].CP += CP;
-  });
-
-  console.log("Agrégé:", agg);
-
+ 
   /* ===== RENDER ===== */
 const tbody = document.getElementById("tbody");
 
