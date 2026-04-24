@@ -1009,44 +1009,4 @@ function resetAll() {
 }
 </script>
 </body>
-</html>function lireCSV(file){
-  setStatus('Lecture du fichier...', false);
-  
-  // Mode FM : Papa Parse normal, on mappera les colonnes après
-  var config = {
-    complete: function(results) {
-      G.rawRows = results.data.filter(function(r){ return Object.values(r).some(function(v){ return v !== null && v !== ''; }); });
-      G.colsDetectees = results.meta.fields || Object.keys(G.rawRows[0] || {});
-      setStatus('Fichier chargé : ' + G.rawRows.length + ' lignes', true);
-      log('Colonnes détectées : ' + G.colsDetectees.join(', '), 'log-info');
-      
-      // Mode FM : pré-remplir les sélecteurs avec les colonnes attendues
-      if(G.modeFraisMission){
-        document.getElementById('col-source').value = detectCol(['Service','Structure','service','structure']);
-        document.getElementById('col-annee').value = detectCol(['Année budgétaire','Annee','Année','annee']);
-        // Colonnes spéciales FM (stockées dans G pour genererPreview)
-        G.colTypeMission = detectCol(['NatureMission','Type mission','TypeMission','nature_mission']);
-        G.colNatureFrais = detectCol(['Naturefrais','Nature frais','NatureFrais','nature_frais']);
-        G.colValeur = detectCol(['Valeur','Montant','valeur','montant']);
-        log('Mode Frais de mission : colonnes détectées automatiquement', 'log-ok');
-      }
-      
-      afficherSelecteursColonnes();
-    },
-    header: true,
-    skipEmptyLines: true,
-    error: function(err) {
-      setStatus('Erreur lecture fichier : ' + err.message, false);
-      log('Erreur : ' + err.message, 'log-err');
-    }
-  };
-  Papa.parse(file, config);
-}
-
-function detectCol(possibles){
-  for(var i=0; i<possibles.length; i++){
-    if(G.colsDetectees.indexOf(possibles[i]) !== -1) return possibles[i];
-  }
-  return G.colsDetectees[0] || '';
-}
-
+</html>
