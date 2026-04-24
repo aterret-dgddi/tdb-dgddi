@@ -678,7 +678,33 @@ function analyserMapping() {
 
   // Résoudre nom structure → id Grist
   var structByNom = {};
-  G.tableStruct.forEach(function(s){ structByNom[strVal(s.Nom || s.nom || '')] = s.id; });
+  G.tableStruct.forEach(function(s){ 
+    var nom = strVal(s.Nom || s.nom || '');
+    structByNom[nom] = s.id; 
+  });
+  
+  // Fonction de matching fuzzy pour gérer les noms tronqués
+  function findStructId(nomRecherche){
+    // Exact match
+    if(structByNom[nomRecherche]) return structByNom[nomRecherche];
+    
+    // Préfixe match : chercher une structure dont le nom commence par nomRecherche
+    // OU dont nomRecherche commence par le nom (cas inverse : nom tronqué dans Grist)
+    var noms = Object.keys(structByNom);
+    for(var i=0; i<noms.length; i++){
+      var nomGrist = noms[i];
+      // Normaliser pour la comparaison (enlever accents, tirets, espaces multiples)
+      var nr = nomRecherche.toLowerCase().replace(/[-\s]+/g, ' ').trim();
+      var ng = nomGrist.toLowerCase().replace(/[-\s]+/g, ' ').trim();
+      
+      // Si l'un est le préfixe de l'autre
+      if(ng.indexOf(nr) === 0 || nr.indexOf(ng) === 0) return structByNom[nomGrist];
+      
+      // Match partiel : les 30 premiers caractères
+      if(nr.substring(0,30) === ng.substring(0,30)) return structByNom[nomGrist];
+    }
+    return null;
+  }
 
   var mappingDiv = document.getElementById('mapping-rows');
   mappingDiv.innerHTML = '';
@@ -789,7 +815,7 @@ function genererPreview() {
       // Créer les preview
       Object.values(grouped).forEach(function(g){
         var nomGrist = equivMap[g.src];
-        var structId = nomGrist ? structByNom[nomGrist] : null;
+        var structId = nomGrist ? findStructId(nomGrist) : null;
         if (!structId) {
           G.preview.push({action:'err',src:g.src,annee:g.annee,valeur:null,raison:'structure non résolue'}); return;
         }
@@ -818,7 +844,7 @@ function genererPreview() {
       if(dep===null&&pcp===null&&pcb===null){
         G.preview.push({action:'skip',src:src,annee:anneeR,valeur:null,raison:'valeurs manquantes'}); continue;
       }
-      var ngIT=equivMap[src], sidIT=ngIT?structByNom[ngIT]:null;
+      var ngIT=equivMap[src], sidIT=ngIT?findStructId(ngIT):null;
       if(!sidIT){G.preview.push({action:'err',src:src,annee:anneeR,valeur:null,raison:'structure non résolue'}); continue;}
       var keyIT=sidIT+'|'+anneeR, exIT=rhIndex[keyIT];
       G.preview.push({action:exIT?'upd':'ins',src:src,nom:ngIT,structId:sidIT,
@@ -837,7 +863,7 @@ function genererPreview() {
       G.preview.push({ action:'skip', src:src, annee:anneeR, valeur:valeur, raison:'valeur manquante' }); continue;
     }
     var nomGrist = equivMap[src];
-    var structId = nomGrist ? structByNom[nomGrist] : null;
+    var structId = nomGrist ? findStructId(nomGrist) : null;
     if (!structId) {
       G.preview.push({ action:'err', src:src, annee:anneeR, valeur:valeur, raison:'structure non résolue' }); continue;
     }
