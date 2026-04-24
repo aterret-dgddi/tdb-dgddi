@@ -1079,11 +1079,16 @@ function resetAll() {
 </script>
 </body>
 </html>function lireCSV(file){
-  console.log('[DEBUG] lireCSV appelé, G.modeFraisMission =', G.modeFraisMission, ', fichier:', file.name);
+  var ext = file.name.split('.').pop().toLowerCase();
+  console.log('[DEBUG] lireCSV appelé');
+  console.log('[DEBUG] G.modeFraisMission =', G.modeFraisMission);
+  console.log('[DEBUG] fichier =', file.name, ', extension =', ext);
+  console.log('[DEBUG] test regex xlsx:', file.name.match(/\.xlsx?$/i));
   setStatus('Lecture du fichier...', false);
   
   // Mode Frais de mission : parser le format Excel en colonnes
-  if (G.modeFraisMission && file.name.match(/\.xlsx?$/i)) {
+  // IMPORTANT : forcer xlsx strict (pas xls)
+  if (G.modeFraisMission && ext === 'xlsx') {
     console.log('[FM] Mode Frais de mission détecté, appel parseFraisMissionExcel');
     parseFraisMissionExcel(file).then(function(rows){
       console.log('[FM] Parsing terminé:', rows.length, 'lignes');
