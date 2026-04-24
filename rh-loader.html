@@ -344,6 +344,10 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <script>
+console.log('============================================');
+console.log('RH-LOADER VERSION 2025-01-18 15:25 CHARGÉE');
+console.log('============================================');
+
 /* ─────────────────────────────────────────────────
    ÉTAT GLOBAL
 ───────────────────────────────────────────────── */
@@ -587,13 +591,23 @@ function lireCSV(file){
         
         // Mode FM : pré-remplir
         if(G.modeFraisMission || isFmFile){
-          console.log('[lireCSV Excel] ENTRÉ dans le if FM');
           document.getElementById('col-source').value = detectCol(['Service','Structure','service','structure']);
           document.getElementById('col-annee').value = detectCol(['Année budgétaire','Annee','Année','annee']);
           G.colTypeMission = detectCol(['NatureMission','Type mission','TypeMission','nature_mission']);
           G.colNatureFrais = detectCol(['Naturefrais','Nature frais','NatureFrais','nature_frais','Naturefrais']);
           G.colValeur = detectCol(['Valeur','Montant','valeur','montant']);
-          console.log('[lireCSV FM] Colonnes FM:', G.colTypeMission, G.colNatureFrais, G.colValeur);
+          
+          // Afficher dans le panneau debug
+          var debugPanel = document.getElementById('debug-panel');
+          var debugContent = document.getElementById('debug-content');
+          debugPanel.style.display = 'block';
+          debugContent.innerHTML = '<strong>Colonnes détectées :</strong><br>'
+            + 'colTypeMission = "' + G.colTypeMission + '"<br>'
+            + 'colNatureFrais = "' + G.colNatureFrais + '"<br>'
+            + 'colValeur = "' + G.colValeur + '"<br>'
+            + 'G.modeFraisMission = ' + G.modeFraisMission + '<br>'
+            + 'isFmFile = ' + isFmFile;
+          
           log('Mode Frais de mission : colonnes détectées', 'log-ok');
         }
         
