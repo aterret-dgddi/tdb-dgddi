@@ -222,9 +222,9 @@ tr:last-child td{border-bottom:none;}
       <div id="info-mode-fm" style="display:none;margin-top:10px;padding:10px 12px;background:#FFF4E6;border-radius:6px;border-left:3px solid #FF9800;">
         <div style="font-size:11px;font-weight:700;color:#E65100;margin-bottom:4px;">✈️ Mode import Frais de mission</div>
         <div style="font-size:11px;color:#4A5A6A;">
-          Format attendu : <strong>3 lignes d'en-tête</strong> (Annee, NatureMission, NatureFrais) puis une ligne par structure.<br>
-          Les colonnes représentent Année × Type mission × Nature frais.<br>
-          Les données seront écrites dans la table <strong>FraisMission</strong>.
+          Format attendu : <strong>une ligne par observation</strong> avec colonnes :<br>
+          <strong>Service</strong> | <strong>Année budgétaire</strong> | <strong>NatureMission</strong> | <strong>Naturefrais</strong> | <strong>Valeur</strong><br>
+          Les données sont regroupées par Structure × Année × Type puis écrites dans <strong>FraisMission</strong>.
         </div>
       </div>
       <div id="etpt-mois-wrap"  style="margin-top:10px;padding:10px 12px;background:#EEF2F7;border-radius:6px;border-left:3px solid #1351A8;display:none;">
@@ -350,7 +350,10 @@ tr:last-child td{border-bottom:none;}
 var G = {
   colIndicateur: 'ETPT_SU',
   modeInformatique: false,
-  modeFraisMission: false,   // colonne RH cible
+  modeFraisMission: false,
+  colTypeMission: '',
+  colNatureFrais: '',
+  colValeur: '',   // colonne RH cible
   rawRows:     [],             // lignes brutes du fichier
   fileHeaders: [],             // colonnes du fichier
   equivalence: [],             // {Source_SI, Structure} depuis Grist
@@ -573,93 +576,7 @@ function traiterFichier(file) {
   }
 }
 
-/* Parse le format Frais de mission Excel (format colonnes)
-   L1: Annee | 2022 | 2022 | 2022 | ...
-   L2: NatureMission | Formation | Formation | Formation | Autres missions | ...
-   L3: NatureFrais | Transport | Hébergement | Repas | Transport | ...
-   L4+: Structure | montant | montant | montant | ... */
-async function parseFraisMissionExcel(file) {
-  console.log('[FM] Début parsing Frais de mission Excel');
-  return new Promise(function(resolve, reject) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        console.log('[FM] Fichier chargé, parsing avec XLSX...');
-        var data = new Uint8Array(e.target.result);
-        var workbook = XLSX.read(data, { type: 'array' });
-        console.log('[FM] Workbook chargé, sheets:', workbook.SheetNames);
-        var sheet = workbook.Sheets[workbook.SheetNames[0]];
-        var range = XLSX.utils.decode_range(sheet['!ref']);
-        
-        // Ligne 1 = Annee (col B onwards)
-        // Ligne 2 = NatureMission
-        // Ligne 3 = NatureFrais
-        // Ligne 4+ = structures
-        var annees = [], types = [], natures = [];
-        for (var C = 1; C <= range.e.c; C++) {
-          var cellA = sheet[XLSX.utils.encode_cell({r:0, c:C})];
-          var cellM = sheet[XLSX.utils.encode_cell({r:1, c:C})];
-          var cellF = sheet[XLSX.utils.encode_cell({r:2, c:C})];
-          annees.push(cellA ? cellA.v : null);
-          types.push(cellM ? cellM.v : null);
-          natures.push(cellF ? cellF.v : null);
-        }
-        
-        // Parser les lignes structures
-        var rows = [];
-        for (var R = 3; R <= range.e.r; R++) {
-          var structCell = sheet[XLSX.utils.encode_cell({r:R, c:0})];
-          var structNom = structCell ? structCell.v : null;
-          if (!structNom) continue;
-          
-          // Pour chaque colonne : créer une entrée Structure | Annee | Type | Nature | Montant
-          for (var C = 1; C <= range.e.c; C++) {
-            var valCell = sheet[XLSX.utils.encode_cell({r:R, c:C})];
-            var montant = valCell ? valCell.v : null;
-            if (montant === null || montant === 0) continue;
-            
-            rows.push({
-              Structure: structNom,
-              Annee: annees[C],
-              TypeMission: types[C],
-              NatureFrais: natures[C],
-              Montant: montant
-            });
-          }
-        }
-        
-        // Regrouper par Structure | Annee | TypeMission
-        var grouped = {};
-        rows.forEach(function(r) {
-          var key = r.Structure + '|' + r.Annee + '|' + r.TypeMission;
-          if (!grouped[key]) {
-            grouped[key] = {
-              Structure: r.Structure,
-              Annee: r.Annee,
-              TypeMission: r.TypeMission,
-              MontantTransport: 0,
-              MontantHebergement: 0,
-              MontantRepas: 0
-            };
-          }
-          if (r.NatureFrais === 'Transport') grouped[key].MontantTransport = r.Montant;
-          else if (r.NatureFrais === 'Hébergement') grouped[key].MontantHebergement = r.Montant;
-          else if (r.NatureFrais === 'Repas') grouped[key].MontantRepas = r.Montant;
-        });
-        
-        var final = Object.values(grouped);
-        console.log('[FM] Groupement terminé:', final.length, 'lignes');
-        log('Frais de mission parsé : ' + final.length + ' lignes (Structure × Année × Type)', 'log-ok');
-        resolve(final);
-      } catch (err) {
-        console.error('[FM] Erreur parsing:', err);
-        reject(err);
-      }
-    };
-    reader.onerror = reject;
-    reader.readAsArrayBuffer(file);
-  });
-}
+
 
 function lireCSV(file) {
   var reader = new FileReader();
@@ -826,9 +743,10 @@ function genererPreview() {
     var anneeR = Number(r[colAn]) || 0;
 
 
-    // ── Mode Frais de mission : déjà parsé par parseFraisMissionExcel ──
+    // ── Mode Frais de mission : format long (une ligne par observation) ──
     if(G.modeFraisMission){
-      // rawRows contient déjà : {Structure, Annee, TypeMission, MontantTransport, MontantHebergement, MontantRepas}
+      // Colonnes : Service, Année budgétaire, NatureMission, Naturefrais, Valeur
+      // Regrouper par Service | Année | NatureMission
       var equivMap = {};
       G.equivalence.forEach(function(e){
         var src = strVal(e.Source_SI || e.source_si || e['Source SI'] || '');
@@ -846,31 +764,44 @@ function genererPreview() {
         fmIndex[key] = r.id;
       });
       
-      G.rawRows.forEach(function(r){
-        var src = r.Structure;
-        var annee = Number(r.Annee) || 0;
-        var type = r.TypeMission;
-        var tr = r.MontantTransport || 0;
-        var hb = r.MontantHebergement || 0;
-        var rp = r.MontantRepas || 0;
+      // Regrouper les lignes par Service | Année | Type
+      var grouped = {};
+      for(var i=0; i<G.rawRows.length; i++){
+        var r = G.rawRows[i];
+        var src = r[colSrc] || '';
+        var annee = Number(r[colAn]) || 0;
+        var type = r[G.colTypeMission] || '';
+        var nature = r[G.colNatureFrais] || '';
+        var valStr = String(r[G.colValeur] || '0').replace(/[€\s]/g, '').replace(',','.');
+        var valeur = parseFloat(valStr) || 0;
         
-        if(!src || !annee || !type) {
-          G.preview.push({action:'skip',src:src,annee:annee,valeur:null,raison:'données manquantes'}); return;
+        if(!src || !annee || !type || !nature) continue;
+        
+        var key = src + '|' + annee + '|' + type;
+        if(!grouped[key]){
+          grouped[key] = {src:src, annee:annee, type:type, tr:0, hb:0, rp:0};
         }
-        var nomGrist = equivMap[src];
+        if(nature.match(/transport/i)) grouped[key].tr += valeur;
+        else if(nature.match(/h[ée]bergement/i)) grouped[key].hb += valeur;
+        else if(nature.match(/repas/i)) grouped[key].rp += valeur;
+      }
+      
+      // Créer les preview
+      Object.values(grouped).forEach(function(g){
+        var nomGrist = equivMap[g.src];
         var structId = nomGrist ? structByNom[nomGrist] : null;
         if (!structId) {
-          G.preview.push({action:'err',src:src,annee:annee,valeur:null,raison:'structure non résolue'}); return;
+          G.preview.push({action:'err',src:g.src,annee:g.annee,valeur:null,raison:'structure non résolue'}); return;
         }
-        var key = structId + '|' + annee + '|' + type;
-        var existId = fmIndex[key];
+        var keyFM = structId + '|' + g.annee + '|' + g.type;
+        var existId = fmIndex[keyFM];
         G.preview.push({
           action: existId ? 'upd' : 'ins',
-          src: src,
+          src: g.src,
           nom: nomGrist,
           structId: structId,
-          annee: annee,
-          valeur: {type:type, tr:tr, hb:hb, rp:rp},
+          annee: g.annee,
+          valeur: {type:g.type, tr:g.tr, hb:g.hb, rp:g.rp},
           fmId: existId || null,
           modeFM: true
         });
@@ -1079,41 +1010,27 @@ function resetAll() {
 </script>
 </body>
 </html>function lireCSV(file){
-  var ext = file.name.split('.').pop().toLowerCase();
-  console.log('[DEBUG] lireCSV appelé');
-  console.log('[DEBUG] G.modeFraisMission =', G.modeFraisMission);
-  console.log('[DEBUG] fichier =', file.name, ', extension =', ext);
-  console.log('[DEBUG] test regex xlsx:', file.name.match(/\.xlsx?$/i));
   setStatus('Lecture du fichier...', false);
   
-  // Mode Frais de mission : parser le format Excel en colonnes
-  // IMPORTANT : forcer xlsx strict (pas xls)
-  if (G.modeFraisMission && ext === 'xlsx') {
-    console.log('[FM] Mode Frais de mission détecté, appel parseFraisMissionExcel');
-    parseFraisMissionExcel(file).then(function(rows){
-      console.log('[FM] Parsing terminé:', rows.length, 'lignes');
-      G.rawRows = rows;
-      // Les colonnes sont déjà mappées : Structure, Annee, TypeMission, MontantTransport, etc.
-      setStatus('Fichier chargé : ' + rows.length + ' lignes (regroupées par Structure × Année × Type)', true);
-      log('Format Frais de mission détecté : ' + rows.length + ' lignes', 'log-ok');
-      // Masquer les sélecteurs de colonnes (déjà mappé)
-      document.getElementById('zone-colonnes').style.display = 'none';
-      // Générer directement la preview
-      genererPreview();
-    }).catch(function(err){
-      setStatus('Erreur lecture Excel : ' + (err.message || err), false);
-      log('Erreur : ' + err, 'log-err');
-    });
-    return;
-  }
-  
-  // Mode standard : Papa Parse CSV/Excel
+  // Mode FM : Papa Parse normal, on mappera les colonnes après
   var config = {
     complete: function(results) {
       G.rawRows = results.data.filter(function(r){ return Object.values(r).some(function(v){ return v !== null && v !== ''; }); });
       G.colsDetectees = results.meta.fields || Object.keys(G.rawRows[0] || {});
       setStatus('Fichier chargé : ' + G.rawRows.length + ' lignes', true);
       log('Colonnes détectées : ' + G.colsDetectees.join(', '), 'log-info');
+      
+      // Mode FM : pré-remplir les sélecteurs avec les colonnes attendues
+      if(G.modeFraisMission){
+        document.getElementById('col-source').value = detectCol(['Service','Structure','service','structure']);
+        document.getElementById('col-annee').value = detectCol(['Année budgétaire','Annee','Année','annee']);
+        // Colonnes spéciales FM (stockées dans G pour genererPreview)
+        G.colTypeMission = detectCol(['NatureMission','Type mission','TypeMission','nature_mission']);
+        G.colNatureFrais = detectCol(['Naturefrais','Nature frais','NatureFrais','nature_frais']);
+        G.colValeur = detectCol(['Valeur','Montant','valeur','montant']);
+        log('Mode Frais de mission : colonnes détectées automatiquement', 'log-ok');
+      }
+      
       afficherSelecteursColonnes();
     },
     header: true,
@@ -1124,5 +1041,12 @@ function resetAll() {
     }
   };
   Papa.parse(file, config);
+}
+
+function detectCol(possibles){
+  for(var i=0; i<possibles.length; i++){
+    if(G.colsDetectees.indexOf(possibles[i]) !== -1) return possibles[i];
+  }
+  return G.colsDetectees[0] || '';
 }
 
