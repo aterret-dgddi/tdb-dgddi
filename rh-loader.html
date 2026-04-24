@@ -771,6 +771,7 @@ function genererPreview() {
 
     // ── Mode Frais de mission : format long (une ligne par observation) ──
     if(G.modeFraisMission){
+      console.log('[FM genererPreview] Début regroupement, rawRows:', G.rawRows.length);
       // Colonnes : Service, Année budgétaire, NatureMission, Naturefrais, Valeur
       // Regrouper par Service | Année | NatureMission
       var equivMap = {};
@@ -779,8 +780,7 @@ function genererPreview() {
         var dst = strVal(e.Structure  || e.structure  || '');
         if (src && dst) equivMap[src] = dst;
       });
-      var structByNom = {};
-      G.tableStruct.forEach(function(s){ structByNom[strVal(s.Nom || s.nom || '')] = s.id; });
+      // NE PAS redéfinir structByNom — findStructId est déjà disponible
       
       // Index existant FraisMission : "structId|annee|type" → row.id
       var fmIndex = {};
@@ -792,6 +792,7 @@ function genererPreview() {
       
       // Regrouper les lignes par Service | Année | Type
       var grouped = {};
+      console.log('[FM] Colonnes: colSrc=', colSrc, 'colAn=', colAn, 'colType=', G.colTypeMission, 'colNature=', G.colNatureFrais, 'colVal=', G.colValeur);
       for(var i=0; i<G.rawRows.length; i++){
         var r = G.rawRows[i];
         var src = r[colSrc] || '';
@@ -801,6 +802,7 @@ function genererPreview() {
         var valStr = String(r[G.colValeur] || '0').replace(/[€\s]/g, '').replace(',','.');
         var valeur = parseFloat(valStr) || 0;
         
+        if(i < 3) console.log('[FM ligne', i, '] src=', src, 'annee=', annee, 'type=', type, 'nature=', nature, 'val=', valeur);
         if(!src || !annee || !type || !nature) continue;
         
         var key = src + '|' + annee + '|' + type;
@@ -813,6 +815,7 @@ function genererPreview() {
       }
       
       // Créer les preview
+      console.log('[FM] Regroupement terminé:', Object.keys(grouped).length, 'groupes');
       Object.values(grouped).forEach(function(g){
         var nomGrist = equivMap[g.src];
         var structId = nomGrist ? findStructId(nomGrist) : null;
