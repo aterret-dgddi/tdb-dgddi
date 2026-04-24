@@ -556,15 +556,22 @@ function lireCSV(file){
       setStatus('Fichier chargé : ' + G.rawRows.length + ' lignes', true);
       log('Colonnes détectées : ' + G.colsDetectees.join(', '), 'log-info');
       
-      // Mode FM : pré-remplir les sélecteurs avec les colonnes attendues
-      if(G.modeFraisMission){
+      // Détection automatique mode FM si colonnes typiques présentes
+      var hasNatureMission = G.colsDetectees.some(function(c){ return c.match(/NatureMission/i); });
+      var hasNaturefrais = G.colsDetectees.some(function(c){ return c.match(/Naturefrais|Nature frais/i); });
+      var isFmFile = hasNatureMission && hasNaturefrais;
+      
+      console.log('[lireCSV] Mode FM actif:', G.modeFraisMission, ', Détection auto FM:', isFmFile);
+      
+      // Mode FM : pré-remplir les sélecteurs (si mode actif OU fichier détecté FM)
+      if(G.modeFraisMission || isFmFile){
         document.getElementById('col-source').value = detectCol(['Service','Structure','service','structure']);
         document.getElementById('col-annee').value = detectCol(['Année budgétaire','Annee','Année','annee']);
-        // Colonnes spéciales FM (stockées dans G pour genererPreview)
+        // Colonnes spéciales FM
         G.colTypeMission = detectCol(['NatureMission','Type mission','TypeMission','nature_mission']);
         G.colNatureFrais = detectCol(['Naturefrais','Nature frais','NatureFrais','nature_frais']);
         G.colValeur = detectCol(['Valeur','Montant','valeur','montant']);
-        console.log('[lireCSV FM] Colonnes détectées:', G.colTypeMission, G.colNatureFrais, G.colValeur);
+        console.log('[lireCSV FM] Colonnes détectées: Type=', G.colTypeMission, 'Nature=', G.colNatureFrais, 'Val=', G.colValeur);
         log('Mode Frais de mission : colonnes détectées automatiquement', 'log-ok');
       }
       
