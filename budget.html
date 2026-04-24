@@ -2,417 +2,226 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Tableau brique DGDDI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Dashboard Budget DGDDI</title>
 
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 
 <style>
+
+/* ===== BASE ===== */
 body {
-  font-family: Arial, sans-serif;
-  background: #f8fafc;
+  font-family: Arial;
   margin: 20px;
-}
-
-.container {
-  max-width: 1100px;
-  margin: auto;
-}
-
-h2 {
-  margin-bottom: 20px;
-}
-
-/* TABLE */
-table {
-  width: 100%;
-  border-collapse: collapse;
   background: #fff;
 }
 
-th, td {
-  padding: 8px 10px;
-  border: 1px solid #d6dde8;
-  font-size: 12px;
+.tb-budg-container {
+  max-width: 1200px;
+  margin: auto;
+}
+
+/* ===== HEADER ===== */
+.tb-budg-header-inner {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.tb-logo { height: 50px; }
+
+/* ===== KPI ===== */
+.tb-budg-kpis {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.kpi-pill {
+  border-radius: 999px;
+  padding: 12px 18px;
+  min-width: 140px;
   text-align: center;
-}
-
-th {
-  background: #e3e8f0;
-}
-
-td:first-child, th:first-child {
-  text-align: left;
   font-weight: 600;
 }
 
-/* NIVEAUX */
-.lvl1 td { background: #e3e8f0; font-weight: 700; }
-.lvl2 td { background: #f1f4f9; }
-.lvl3 td { background: #f8fafc; }
+.kpi-good { background:#e8f5e9; color:#1b5e20; }
+.kpi-bad { background:#fdecea; color:#8b1c1c; }
 
-/* ESPACEMENT PROPRE */
-tbody tr.lvl1 td {
-  border-top: 8px solid #f8fafc;
+/* ===== TABLE ===== */
+.tb-budg-table {
+  width:100%;
+  border-collapse: collapse;
+  font-size:12px;
 }
 
-/* COLORS */
-.good { color: #2e7d32; }
-.neutral { color: #2f3b52; }
+.tb-budg-table th,
+.tb-budg-table td {
+  border:1px solid #d6dde8;
+  padding:8px;
+}
+
+.tb-budg-table th {
+  background:#e3e8f0;
+}
+
+.lvl1 td { background:#e3e8f0; font-weight:bold; }
+.lvl2 td { background:#f1f4f9; }
+.lvl3 td { background:#ffffff; }
+
+tfoot td {
+  font-weight:700;
+  background:#d6dde8;
+}
 
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<div class="tb-budg-container">
 
-  <h2>Consommation 2026 par brique</h2>
+<h2>Tableau de bord DGDDI</h2>
 
-  <table class="table-brique">
-    <thead>
-      <tr>
-        <th>Brique / Sous-brique / Activité</th>
-        <th>AE consommées</th>
-        <th>CP consommés</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<!-- KPI -->
+<div class="tb-budg-kpis">
+  <div class="kpi-pill kpi-good">AE : <span id="kpi-ae">0</span></div>
+  <div class="kpi-pill kpi-good">CP : <span id="kpi-cp">0</span></div>
+</div>
+
+<!-- TABLE -->
+<table class="tb-budg-table">
+<thead>
+<tr>
+  <th>Brique</th>
+  <th>Sous-brique</th>
+  <th>Activité</th>
+  <th>AE consommées</th>
+  <th>CP consommés</th>
+</tr>
+</thead>
+
+<tbody id="tbody"></tbody>
+
+<tfoot>
+<tr>
+  <td colspan="3">TOTAL</td>
+  <td id="total-ae">0</td>
+  <td id="total-cp">0</td>
+</tr>
+</tfoot>
+
+</table>
 
 </div>
 
 <script>
 
-/* ===== PARSER NUMERIQUE ROBUSTE ===== */
-function toNumber(val) {
-  if (val === null || val === undefined) return 0;
+/* ===== INIT GRIST ===== */
+grist.ready({requiredAccess: 'read table'});
 
-  if (typeof val === "string") {
-    val = val.replace(/\s/g, "").replace(",", ".");
-  }
+grist.onRecords(function(records) {
 
-  const n = Number(val);
-  return isNaN(n) ? 0 : n;
-}
+  console.log("Records:", records);
 
-/* ===== BUILD HIERARCHY ===== */
-function buildHierarchy(records) {
-  const data = {};
+  const agg = {};
+
+  let totalAE = 0;
+  let totalCP = 0;
 
   records.forEach(r => {
 
-    const brique = r.brique || "Non renseigné";
-    const sous = r.sous_brique || "Non renseigné";
-    const act = r.libact || "Activité inconnue";
+    /* ===== EXCLUSION MASSE SALARIALE ===== */
+    if (!r.cb) return;
 
-    const AE = toNumber(r.AE);
-    const CP = toNumber(r.CP);
-
-    if (!data[brique]) {
-      data[brique] = { AE: 0, CP: 0, sous: {} };
+    const cb = String(r.cb);
+    if (cb.startsWith("3") || cb.startsWith("5") || cb.startsWith("6")) {
+      return;
     }
 
-    data[brique].AE += AE;
-    data[brique].CP += CP;
+    const brique = r.brique || "Non défini";
+    const sous = r.sous_brique || "Non défini";
+    const act = r.activite || "Non défini";
 
-    if (!data[brique].sous[sous]) {
-      data[brique].sous[sous] = { AE: 0, CP: 0, act: {} };
-    }
+    const AE = Number(r.AE || 0);
+    const CP = Number(r.CP || 0);
 
-    data[brique].sous[sous].AE += AE;
-    data[brique].sous[sous].CP += CP;
+    totalAE += AE;
+    totalCP += CP;
 
-    if (!data[brique].sous[sous].act[act]) {
-      data[brique].sous[sous].act[act] = { AE: 0, CP: 0 };
-    }
+    if (!agg[brique]) agg[brique] = {};
+    if (!agg[brique][sous]) agg[brique][sous] = {};
+    if (!agg[brique][sous][act]) agg[brique][sous][act] = {AE:0, CP:0};
 
-    data[brique].sous[sous].act[act].AE += AE;
-    data[brique].sous[sous].act[act].CP += CP;
+    agg[brique][sous][act].AE += AE;
+    agg[brique][sous][act].CP += CP;
   });
 
-  return data;
-}
+  console.log("Agrégé:", agg);
 
-/* ===== FORMAT ===== */
-function format(n) {
-  return n.toLocaleString("fr-FR");
-}
-
-/* ===== RENDER ===== */
-function render(data) {
-  const tbody = document.querySelector(".table-brique tbody");
+  /* ===== RENDER ===== */
+  const tbody = document.getElementById("tbody");
   tbody.innerHTML = "";
 
-  Object.entries(data).forEach(([brique, bData]) => {
+  Object.entries(agg).forEach(([brique, souss]) => {
 
-    // LVL1
-    const tr1 = document.createElement("tr");
-    tr1.className = "lvl1";
-    tr1.innerHTML = `
-      <td>${brique}</td>
-      <td class="good">${format(bData.AE)}</td>
-      <td class="neutral">${format(bData.CP)}</td>
-    `;
-    tbody.appendChild(tr1);
+    let briqueAE = 0;
+    let briqueCP = 0;
 
-    // LVL2
-    Object.entries(bData.sous).forEach(([sous, sData]) => {
+    Object.entries(souss).forEach(([sous, acts]) => {
 
-      const tr2 = document.createElement("tr");
-      tr2.className = "lvl2";
-      tr2.innerHTML = `
-        <td>${sous}</td>
-        <td class="good">${format(sData.AE)}</td>
-        <td class="neutral">${format(sData.CP)}</td>
-      `;
-      tbody.appendChild(tr2);
+      let sousAE = 0;
+      let sousCP = 0;
 
-      // LVL3
-      Object.entries(sData.act).forEach(([act, aData]) => {
+      Object.entries(acts).forEach(([act, val]) => {
 
-        const tr3 = document.createElement("tr");
-        tr3.className = "lvl3";
-        tr3.innerHTML = `
+        sousAE += val.AE;
+        sousCP += val.CP;
+
+        const tr = `
+        <tr class="lvl3">
+          <td></td>
+          <td></td>
           <td>${act}</td>
-          <td>${format(aData.AE)}</td>
-          <td>${format(aData.CP)}</td>
-        `;
-        tbody.appendChild(tr3);
-
+          <td>${val.AE.toLocaleString()}</td>
+          <td>${val.CP.toLocaleString()}</td>
+        </tr>`;
+        tbody.insertAdjacentHTML("beforeend", tr);
       });
 
-    });
+      briqueAE += sousAE;
+      briqueCP += sousCP;
 
-  });
-}
-
-/* ===== GRIST ===== */
-grist.ready({ requiredAccess: 'read table' });
-
-grist.onRecords((records) => {
-
-  if (!records || records.length === 0) {
-    console.warn("Aucune donnée reçue");
-    return;
-  }
-
-  console.log("Records :", records.length);
-
-  const data = buildHierarchy(records);
-
-  console.log("Hiérarchie :", data);
-
-  render(data);
-});
-
-</script>
-
-</body>
-</html><!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<title>Tableau brique DGDDI</title>
-
-<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-
-<style>
-body {
-  font-family: Arial, sans-serif;
-  background: #f8fafc;
-  margin: 20px;
-}
-
-.container {
-  max-width: 1100px;
-  margin: auto;
-}
-
-h2 {
-  margin-bottom: 20px;
-}
-
-/* TABLE */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-}
-
-th, td {
-  padding: 8px 10px;
-  border: 1px solid #d6dde8;
-  font-size: 12px;
-  text-align: center;
-}
-
-th {
-  background: #e3e8f0;
-}
-
-td:first-child, th:first-child {
-  text-align: left;
-  font-weight: 600;
-}
-
-/* NIVEAUX */
-.lvl1 td { background: #e3e8f0; font-weight: 700; }
-.lvl2 td { background: #f1f4f9; }
-.lvl3 td { background: #f8fafc; }
-
-/* ESPACEMENT PROPRE */
-tbody tr.lvl1 td {
-  border-top: 8px solid #f8fafc;
-}
-
-/* COLORS */
-.good { color: #2e7d32; }
-.neutral { color: #2f3b52; }
-
-</style>
-</head>
-
-<body>
-
-<div class="container">
-
-  <h2>Consommation 2026 par brique</h2>
-
-  <table class="table-brique">
-    <thead>
-      <tr>
-        <th>Brique / Sous-brique / Activité</th>
-        <th>AE consommées</th>
-        <th>CP consommés</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-</div>
-
-<script>
-
-/* ===== PARSER NUMERIQUE ROBUSTE ===== */
-function toNumber(val) {
-  if (val === null || val === undefined) return 0;
-
-  if (typeof val === "string") {
-    val = val.replace(/\s/g, "").replace(",", ".");
-  }
-
-  const n = Number(val);
-  return isNaN(n) ? 0 : n;
-}
-
-/* ===== BUILD HIERARCHY ===== */
-function buildHierarchy(records) {
-  const data = {};
-
-  records.forEach(r => {
-
-    const brique = r.brique || "Non renseigné";
-    const sous = r.sous_brique || "Non renseigné";
-    const act = r.libact || "Activité inconnue";
-
-    const AE = toNumber(r.AE);
-    const CP = toNumber(r.CP);
-
-    if (!data[brique]) {
-      data[brique] = { AE: 0, CP: 0, sous: {} };
-    }
-
-    data[brique].AE += AE;
-    data[brique].CP += CP;
-
-    if (!data[brique].sous[sous]) {
-      data[brique].sous[sous] = { AE: 0, CP: 0, act: {} };
-    }
-
-    data[brique].sous[sous].AE += AE;
-    data[brique].sous[sous].CP += CP;
-
-    if (!data[brique].sous[sous].act[act]) {
-      data[brique].sous[sous].act[act] = { AE: 0, CP: 0 };
-    }
-
-    data[brique].sous[sous].act[act].AE += AE;
-    data[brique].sous[sous].act[act].CP += CP;
-  });
-
-  return data;
-}
-
-/* ===== FORMAT ===== */
-function format(n) {
-  return n.toLocaleString("fr-FR");
-}
-
-/* ===== RENDER ===== */
-function render(data) {
-  const tbody = document.querySelector(".table-brique tbody");
-  tbody.innerHTML = "";
-
-  Object.entries(data).forEach(([brique, bData]) => {
-
-    // LVL1
-    const tr1 = document.createElement("tr");
-    tr1.className = "lvl1";
-    tr1.innerHTML = `
-      <td>${brique}</td>
-      <td class="good">${format(bData.AE)}</td>
-      <td class="neutral">${format(bData.CP)}</td>
-    `;
-    tbody.appendChild(tr1);
-
-    // LVL2
-    Object.entries(bData.sous).forEach(([sous, sData]) => {
-
-      const tr2 = document.createElement("tr");
-      tr2.className = "lvl2";
-      tr2.innerHTML = `
+      const trSous = `
+      <tr class="lvl2">
+        <td></td>
         <td>${sous}</td>
-        <td class="good">${format(sData.AE)}</td>
-        <td class="neutral">${format(sData.CP)}</td>
-      `;
-      tbody.appendChild(tr2);
-
-      // LVL3
-      Object.entries(sData.act).forEach(([act, aData]) => {
-
-        const tr3 = document.createElement("tr");
-        tr3.className = "lvl3";
-        tr3.innerHTML = `
-          <td>${act}</td>
-          <td>${format(aData.AE)}</td>
-          <td>${format(aData.CP)}</td>
-        `;
-        tbody.appendChild(tr3);
-
-      });
-
+        <td></td>
+        <td>${sousAE.toLocaleString()}</td>
+        <td>${sousCP.toLocaleString()}</td>
+      </tr>`;
+      tbody.insertAdjacentHTML("afterbegin", trSous);
     });
 
+    const trBrique = `
+    <tr class="lvl1">
+      <td>${brique}</td>
+      <td></td>
+      <td></td>
+      <td>${briqueAE.toLocaleString()}</td>
+      <td>${briqueCP.toLocaleString()}</td>
+    </tr>`;
+    tbody.insertAdjacentHTML("afterbegin", trBrique);
   });
-}
 
-/* ===== GRIST ===== */
-grist.ready({ requiredAccess: 'read table' });
+  /* ===== KPI ===== */
+  document.getElementById("kpi-ae").innerText = totalAE.toLocaleString();
+  document.getElementById("kpi-cp").innerText = totalCP.toLocaleString();
 
-grist.onRecords((records) => {
+  document.getElementById("total-ae").innerText = totalAE.toLocaleString();
+  document.getElementById("total-cp").innerText = totalCP.toLocaleString();
 
-  if (!records || records.length === 0) {
-    console.warn("Aucune donnée reçue");
-    return;
-  }
-
-  console.log("Records :", records.length);
-
-  const data = buildHierarchy(records);
-
-  console.log("Hiérarchie :", data);
-
-  render(data);
 });
 
 </script>
