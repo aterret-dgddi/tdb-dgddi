@@ -574,15 +574,18 @@ function lireCSV(file){
         setStatus('Excel parsé : ' + G.rawRows.length + ' lignes, colonnes : ' + G.colsDetectees.join(', '), true);
         
         // Détection automatique mode FM
+        console.log('[lireCSV Excel AVANT] Colonnes détectées:', G.colsDetectees);
         var hasNatureMission = G.colsDetectees.some(function(c){ return String(c).match(/NatureMission/i); });
         var hasNaturefrais = G.colsDetectees.some(function(c){ return String(c).match(/Naturefrais|Nature.?frais/i); });
         var isFmFile = hasNatureMission && hasNaturefrais;
         
-        console.log('[lireCSV Excel] Colonnes:', G.colsDetectees);
+        console.log('[lireCSV Excel] hasNatureMission=', hasNatureMission, 'hasNaturefrais=', hasNaturefrais);
         console.log('[lireCSV Excel] Mode FM actif:', G.modeFraisMission, ', Détection auto FM:', isFmFile);
+        console.log('[lireCSV Excel] Test if:', G.modeFraisMission || isFmFile);
         
         // Mode FM : pré-remplir
         if(G.modeFraisMission || isFmFile){
+          console.log('[lireCSV Excel] ENTRÉ dans le if FM');
           document.getElementById('col-source').value = detectCol(['Service','Structure','service','structure']);
           document.getElementById('col-annee').value = detectCol(['Année budgétaire','Annee','Année','annee']);
           G.colTypeMission = detectCol(['NatureMission','Type mission','TypeMission','nature_mission']);
