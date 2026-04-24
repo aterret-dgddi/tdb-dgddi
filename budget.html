@@ -155,78 +155,69 @@ grist.onRecords(function(records) {
 
   console.log("Agrégé:", agg);
 
-  /* ===== RENDER ===== */
-  const tbody = document.getElementById("tbody");
+ /* ===== RENDER COMPACT ===== */
+const tbody = document.getElementById("tbody");
 
-  let html = "";
+let html = "";
 
-  Object.entries(agg).forEach(([brique, souss]) => {
+Object.entries(agg).forEach(([brique, souss]) => {
 
-    let briqueAE = 0;
-    let briqueCP = 0;
+  let briqueAE = 0;
+  let briqueCP = 0;
 
-    html += `
-    <tr class="lvl1">
-      <td>${brique}</td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-    </tr>`;
+  // calcul total brique
+  Object.values(souss).forEach(acts => {
+    Object.values(acts).forEach(val => {
+      briqueAE += val.AE;
+      briqueCP += val.CP;
+    });
+  });
 
-    Object.entries(souss).forEach(([sous, acts]) => {
+  html += `
+  <tr class="lvl1">
+    <td>${brique}</td>
+    <td></td>
+    <td></td>
+    <td><strong>${briqueAE.toLocaleString()}</strong></td>
+    <td><strong>${briqueCP.toLocaleString()}</strong></td>
+  </tr>`;
 
-      let sousAE = 0;
-      let sousCP = 0;
+  Object.entries(souss).forEach(([sous, acts]) => {
 
-      html += `
-      <tr class="lvl2">
-        <td></td>
-        <td>${sous}</td>
-        <td></td>
-        <td></td>
-        <td></td>
-      </tr>`;
+    let sousAE = 0;
+    let sousCP = 0;
 
-      Object.entries(acts).forEach(([act, val]) => {
-
-        sousAE += val.AE;
-        sousCP += val.CP;
-
-        html += `
-        <tr class="lvl3">
-          <td></td>
-          <td></td>
-          <td>${act}</td>
-          <td>${val.AE.toLocaleString()}</td>
-          <td>${val.CP.toLocaleString()}</td>
-        </tr>`;
-      });
-
-      briqueAE += sousAE;
-      briqueCP += sousCP;
-
-      html += `
-      <tr class="lvl2">
-        <td></td>
-        <td><strong>Total ${sous}</strong></td>
-        <td></td>
-        <td><strong>${sousAE.toLocaleString()}</strong></td>
-        <td><strong>${sousCP.toLocaleString()}</strong></td>
-      </tr>`;
+    Object.values(acts).forEach(val => {
+      sousAE += val.AE;
+      sousCP += val.CP;
     });
 
     html += `
-    <tr class="lvl1">
-      <td><strong>Total ${brique}</strong></td>
+    <tr class="lvl2">
       <td></td>
+      <td>${sous}</td>
       <td></td>
-      <td><strong>${briqueAE.toLocaleString()}</strong></td>
-      <td><strong>${briqueCP.toLocaleString()}</strong></td>
+      <td><strong>${sousAE.toLocaleString()}</strong></td>
+      <td><strong>${sousCP.toLocaleString()}</strong></td>
     </tr>`;
+
+    Object.entries(acts).forEach(([act, val]) => {
+
+      html += `
+      <tr class="lvl3">
+        <td></td>
+        <td></td>
+        <td>${act}</td>
+        <td>${val.AE.toLocaleString()}</td>
+        <td>${val.CP.toLocaleString()}</td>
+      </tr>`;
+    });
+
   });
 
-  tbody.innerHTML = html;
+});
+
+tbody.innerHTML = html;
 
   /* ===== KPI ===== */
   document.getElementById("kpi-ae").innerText = totalAE.toLocaleString();
