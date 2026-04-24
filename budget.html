@@ -7,7 +7,10 @@
 <title>Dashboard Budget DGDDI</title>
 
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+
+<!-- Marianne officielle -->
 <link rel="stylesheet" href="https://www.systeme-de-design.gouv.fr/dist/fonts/Marianne/marianne.css">
+
 <style>
 
 /* ===== BASE ===== */
@@ -22,15 +25,6 @@ body {
   margin: auto;
 }
 
-/* ===== HEADER ===== */
-.tb-budg-header-inner {
-  display: flex;
-  gap: 15px;
-  align-items: center;
-}
-
-.tb-logo { height: 50px; }
-
 /* ===== KPI ===== */
 .tb-budg-kpis {
   display: flex;
@@ -41,20 +35,17 @@ body {
 .kpi-pill {
   border-radius: 999px;
   padding: 12px 18px;
-  min-width: 140px;
+  min-width: 160px;
   text-align: center;
   font-weight: 600;
-   font-size: 13px;
+  background:#e8f5e9;
 }
-
-.kpi-good { background:#e8f5e9; color:#1b5e20; }
-.kpi-bad { background:#fdecea; color:#8b1c1c; }
 
 /* ===== TABLE ===== */
 .tb-budg-table {
   width:100%;
   border-collapse: collapse;
-  font-size:11px;
+  font-size:12px;
 }
 
 .tb-budg-table th,
@@ -67,82 +58,25 @@ body {
   background:#e3e8f0;
 }
 
-.lvl1 td { background:#e3e8f0; font-weight:bold; }
-.lvl2 td { background:#f1f4f9; }
+/* niveaux */
+.lvl1 td { background:#e3e8f0; font-weight:bold; cursor:pointer; }
+.lvl2 td { background:#f1f4f9; cursor:pointer; }
 .lvl3 td { background:#ffffff; }
 
-tfoot td {
-  font-weight:700;
-  background:#d6dde8;
-}
+.hidden { display:none; }
 
-/* ===== ACCORDION ===== */
+/* indentation */
+.lvl1 td:first-child { padding-left:12px; }
+.lvl2 td:first-child { padding-left:28px; }
+.lvl3 td:first-child { padding-left:48px; }
 
-.lvl1 {
-  cursor: pointer;
-}
+/* flèches */
+.lvl1 td:first-child::before { content:"▶ "; }
+.lvl1.open td:first-child::before { content:"▼ "; }
 
-.lvl2 {
-  cursor: pointer;
-}
+.lvl2 td:first-child::before { content:"▶ "; }
+.lvl2.open td:first-child::before { content:"▼ "; }
 
-.hidden {
-  display: none;
-}
-
-/* petit indicateur visuel */
-.lvl1 td:first-child::before {
-  content: "▶ ";
-  font-size: 10px;
-}
-
-.lvl1.open td:first-child::before {
-  content: "▼ ";
-}
-
-.lvl2 td:nth-child(2)::before {
-  content: "▶ ";
-  font-size: 10px;
-}
-
-.lvl2.open td:nth-child(2)::before {
-  content: "▼ ";
-}
-
-/* indentation hiérarchique */
-.lvl1 td:first-child {
-  padding-left: 12px;
-  font-weight: 700;
-}
-
-.lvl2 td:first-child {
-  padding-left: 28px;
-  font-weight: 600;
-}
-
-.lvl3 td:first-child {
-  padding-left: 48px;
-}
-
-.tb-budg-table td {
-  padding-top: 6px;
-  padding-bottom: 6px;
-}
-
-  .lvl1:hover,
-.lvl2:hover {
-  background: #dbe5f1;
-}
-
-.lvl1.open td,
-.lvl2.open td {
-  background: #cfd8e6;
-}
-
-  .tb-budg-table tr {
-  transition: background 0.15s ease;
-}
-  
 </style>
 </head>
 
@@ -154,8 +88,8 @@ tfoot td {
 
 <!-- KPI -->
 <div class="tb-budg-kpis">
-  <div class="kpi-pill kpi-good">AE : <span id="kpi-ae">0</span></div>
-  <div class="kpi-pill kpi-good">CP : <span id="kpi-cp">0</span></div>
+  <div class="kpi-pill">AE : <span id="kpi-ae">0</span></div>
+  <div class="kpi-pill">CP : <span id="kpi-cp">0</span></div>
 </div>
 
 <!-- TABLE -->
@@ -182,17 +116,22 @@ tfoot td {
 
 </div>
 
-
 <script>
 
+/* ===== FORMAT M€ ===== */
+function formatMillions(val){
+  return (val / 1_000_000).toLocaleString('fr-FR', {
+    minimumFractionDigits:1,
+    maximumFractionDigits:1
+  }) + " M€";
+}
+
+/* ===== GRIST ===== */
 grist.ready({requiredAccess: 'read table'});
 
 grist.onRecords(function(records) {
 
-  console.log("Records:", records);
-
   const agg = {};
-
   let totalAE = 0;
   let totalCP = 0;
 
@@ -205,11 +144,10 @@ grist.onRecords(function(records) {
     const AE = Number(r.AE) || 0;
     const CP = Number(r.CP) || 0;
 
-    // 🔥 AGRÉGATION (manquante chez toi)
     if (!agg[brique]) agg[brique] = {};
     if (!agg[brique][sous]) agg[brique][sous] = {};
     if (!agg[brique][sous][act]) {
-      agg[brique][sous][act] = { AE: 0, CP: 0 };
+      agg[brique][sous][act] = { AE:0, CP:0 };
     }
 
     agg[brique][sous][act].AE += AE;
@@ -219,128 +157,102 @@ grist.onRecords(function(records) {
     totalCP += CP;
   });
 
-  console.log("Agrégé:", agg);
+  /* ===== RENDER ===== */
+  const tbody = document.getElementById("tbody");
+  let html = "";
 
-function formatMillions(value) {
-  return (value / 1_000_000).toLocaleString('fr-FR', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1
-  }) + " M€";
-}
-  
-/* ===== RENDER 1 COLONNE ===== */
-const tbody = document.getElementById("tbody");
+  Object.entries(agg).forEach(([brique, souss], i) => {
 
-let html = "";
+    let briqueAE = 0;
+    let briqueCP = 0;
 
-Object.entries(agg).forEach(([brique, souss], i) => {
-
-  let briqueAE = 0;
-  let briqueCP = 0;
-
-  Object.values(souss).forEach(acts => {
-    Object.values(acts).forEach(val => {
-      briqueAE += val.AE;
-      briqueCP += val.CP;
-    });
-  });
-
-  html += `
-  <tr class="lvl1" data-brique="${i}">
-    <td>${brique}</td>
-    <td><strong>${briqueAE.toLocaleString()}</strong></td>
-    <td><strong>${briqueCP.toLocaleString()}</strong></td>
-  </tr>`;
-
-  Object.entries(souss).forEach(([sous, acts], j) => {
-
-    let sousAE = 0;
-    let sousCP = 0;
-
-    Object.values(acts).forEach(val => {
-      sousAE += val.AE;
-      sousCP += val.CP;
+    Object.values(souss).forEach(acts => {
+      Object.values(acts).forEach(v => {
+        briqueAE += v.AE;
+        briqueCP += v.CP;
+      });
     });
 
     html += `
-    <tr class="lvl2 hidden" data-parent="${i}" data-sous="${i}-${j}">
-      <td>${sous}</td>
-      <td><strong>${sousAE.toLocaleString()}</strong></td>
-      <td><strong>${sousCP.toLocaleString()}</strong></td>
+    <tr class="lvl1" data-brique="${i}">
+      <td>${brique}</td>
+      <td>${formatMillions(briqueAE)}</td>
+      <td>${formatMillions(briqueCP)}</td>
     </tr>`;
 
-    Object.entries(acts).forEach(([act, val]) => {
+    Object.entries(souss).forEach(([sous, acts], j) => {
+
+      let sousAE = 0;
+      let sousCP = 0;
+
+      Object.values(acts).forEach(v => {
+        sousAE += v.AE;
+        sousCP += v.CP;
+      });
 
       html += `
-      <tr class="lvl3 hidden" data-parent="${i}-${j}">
-        <td>${act}</td>
-        <td>${formatMillions(val.AE)}</td>
-        <td>${formatMillions(val.CP)}</td>
+      <tr class="lvl2 hidden" data-parent="${i}" data-sous="${i}-${j}">
+        <td>${sous}</td>
+        <td>${formatMillions(sousAE)}</td>
+        <td>${formatMillions(sousCP)}</td>
       </tr>`;
+
+      Object.entries(acts).forEach(([act, v]) => {
+
+        html += `
+        <tr class="lvl3 hidden" data-parent="${i}-${j}">
+          <td>${act}</td>
+          <td>${formatMillions(v.AE)}</td>
+          <td>${formatMillions(v.CP)}</td>
+        </tr>`;
+      });
+
     });
 
   });
 
-});
+  tbody.innerHTML = html;
 
-tbody.innerHTML = html;
+  /* ===== ACCORDION ===== */
 
-/* ===== ACCORDION LOGIC ===== */
+  document.querySelectorAll(".lvl1").forEach(row => {
+    row.onclick = () => {
+      const id = row.dataset.brique;
+      const open = row.classList.toggle("open");
 
-// click sur brique
-document.querySelectorAll(".lvl1").forEach(row => {
-  row.addEventListener("click", () => {
+      document.querySelectorAll(`.lvl2[data-parent='${id}']`)
+        .forEach(el => el.classList.toggle("hidden", !open));
 
-    const id = row.dataset.brique;
-    const isOpen = row.classList.contains("open");
+      document.querySelectorAll(`.lvl3`)
+        .forEach(el => {
+          if (el.dataset.parent.startsWith(id + "-")) {
+            el.classList.add("hidden");
+          }
+        });
 
-    row.classList.toggle("open");
-
-    document.querySelectorAll(`.lvl2[data-parent='${id}']`)
-      .forEach(el => {
-        el.classList.toggle("hidden", isOpen);
-      });
-
-    // ferme aussi les niveaux 3
-    document.querySelectorAll(`.lvl3`)
-      .forEach(el => {
-        if (el.dataset.parent.startsWith(id + "-")) {
-          el.classList.add("hidden");
-        }
-      });
-
-    document.querySelectorAll(`.lvl2[data-parent='${id}']`)
-      .forEach(el => el.classList.remove("open"));
+      document.querySelectorAll(`.lvl2[data-parent='${id}']`)
+        .forEach(el => el.classList.remove("open"));
+    };
   });
-});
 
-// click sur sous-brique
-document.querySelectorAll(".lvl2").forEach(row => {
-  row.addEventListener("click", (e) => {
+  document.querySelectorAll(".lvl2").forEach(row => {
+    row.onclick = (e) => {
+      e.stopPropagation();
+      const id = row.dataset.sous;
+      const open = row.classList.toggle("open");
 
-    e.stopPropagation();
-
-    const id = row.dataset.sous;
-    const isOpen = row.classList.contains("open");
-
-    row.classList.toggle("open");
-
-    document.querySelectorAll(`.lvl3[data-parent='${id}']`)
-      .forEach(el => {
-        el.classList.toggle("hidden", isOpen);
-      });
+      document.querySelectorAll(`.lvl3[data-parent='${id}']`)
+        .forEach(el => el.classList.toggle("hidden", !open));
+    };
   });
-});
 
   /* ===== KPI ===== */
-  document.getElementById("kpi-ae").innerText = totalAE.toLocaleString();
-  document.getElementById("kpi-cp").innerText = totalCP.toLocaleString();
-
-  document.getElementById("total-ae").innerText = totalAE.toLocaleString();
-  document.getElementById("total-cp").innerText = totalCP.toLocaleString();
+  document.getElementById("kpi-ae").innerText = formatMillions(totalAE);
+  document.getElementById("kpi-cp").innerText = formatMillions(totalCP);
+  document.getElementById("total-ae").innerText = formatMillions(totalAE);
+  document.getElementById("total-cp").innerText = formatMillions(totalCP);
 
 });
-
 
 </script>
 
