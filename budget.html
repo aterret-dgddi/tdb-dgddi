@@ -107,6 +107,40 @@ tfoot td {
 .lvl2.open td:nth-child(2)::before {
   content: "▼ ";
 }
+
+/* indentation hiérarchique */
+.lvl1 td:first-child {
+  padding-left: 12px;
+  font-weight: 700;
+}
+
+.lvl2 td:first-child {
+  padding-left: 28px;
+  font-weight: 600;
+}
+
+.lvl3 td:first-child {
+  padding-left: 48px;
+}
+
+.tb-budg-table td {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+  .lvl1:hover,
+.lvl2:hover {
+  background: #dbe5f1;
+}
+
+.lvl1.open td,
+.lvl2.open td {
+  background: #cfd8e6;
+}
+
+  .tb-budg-table tr {
+  transition: background 0.15s ease;
+}
   
 </style>
 </head>
@@ -127,9 +161,7 @@ tfoot td {
 <table class="tb-budg-table">
 <thead>
 <tr>
-  <th>Brique</th>
-  <th>Sous-brique</th>
-  <th>Activité</th>
+  <th>Brique / Sous-brique / Activité</th>
   <th>AE consommées</th>
   <th>CP consommés</th>
 </tr>
@@ -139,7 +171,7 @@ tfoot td {
 
 <tfoot>
 <tr>
-  <td colspan="3">TOTAL</td>
+  <td><strong>TOTAL</strong></td>
   <td id="total-ae">0</td>
   <td id="total-cp">0</td>
 </tr>
@@ -188,7 +220,7 @@ grist.onRecords(function(records) {
 
   console.log("Agrégé:", agg);
 
-/* ===== RENDER AVEC ACCORDION ===== */
+/* ===== RENDER 1 COLONNE ===== */
 const tbody = document.getElementById("tbody");
 
 let html = "";
@@ -208,8 +240,6 @@ Object.entries(agg).forEach(([brique, souss], i) => {
   html += `
   <tr class="lvl1" data-brique="${i}">
     <td>${brique}</td>
-    <td></td>
-    <td></td>
     <td><strong>${briqueAE.toLocaleString()}</strong></td>
     <td><strong>${briqueCP.toLocaleString()}</strong></td>
   </tr>`;
@@ -226,9 +256,7 @@ Object.entries(agg).forEach(([brique, souss], i) => {
 
     html += `
     <tr class="lvl2 hidden" data-parent="${i}" data-sous="${i}-${j}">
-      <td></td>
       <td>${sous}</td>
-      <td></td>
       <td><strong>${sousAE.toLocaleString()}</strong></td>
       <td><strong>${sousCP.toLocaleString()}</strong></td>
     </tr>`;
@@ -237,8 +265,6 @@ Object.entries(agg).forEach(([brique, souss], i) => {
 
       html += `
       <tr class="lvl3 hidden" data-parent="${i}-${j}">
-        <td></td>
-        <td></td>
         <td>${act}</td>
         <td>${val.AE.toLocaleString()}</td>
         <td>${val.CP.toLocaleString()}</td>
