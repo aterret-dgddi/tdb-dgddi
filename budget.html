@@ -8,8 +8,8 @@
 
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 
-<!-- Police Marianne -->
-<link href="https://fonts.googleapis.com/css2?family=Marianne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Marianne font -->
+<link href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@latest/dist/fonts/Marianne/font.css" rel="stylesheet">
 
 <style>
 
@@ -17,7 +17,7 @@
 body {
   font-family: "Marianne", Arial, sans-serif;
   margin: 20px;
-  background: #f5f7fb;
+  background: #f6f7fb;
 }
 
 .tb-budg-container {
@@ -28,16 +28,16 @@ body {
 /* ===== CARD ===== */
 .tb-card {
   background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  margin-bottom: 30px;
   overflow: hidden;
 }
 
 .tb-card-header {
   padding: 14px 18px;
-  font-weight: 600;
-  background: #eef2f7;
-  border-bottom: 1px solid #d6dde8;
+  font-weight: 700;
+  background: #e3e8f0;
 }
 
 .tb-card-body {
@@ -58,7 +58,6 @@ body {
   text-align: center;
   font-weight: 600;
   background:#e8f5e9;
-  color:#1b5e20;
 }
 
 /* ===== TABLE ===== */
@@ -71,12 +70,11 @@ body {
 .tb-budg-table th,
 .tb-budg-table td {
   border:1px solid #d6dde8;
-  padding:6px 8px;
+  padding:6px;
 }
 
 .tb-budg-table th {
   background:#e3e8f0;
-  text-align:left;
 }
 
 .lvl1 td { background:#e3e8f0; font-weight:bold; }
@@ -89,20 +87,19 @@ tfoot td {
 }
 
 /* ===== ACCORDION ===== */
+.lvl1, .lvl2 { cursor:pointer; }
 
-.lvl1, .lvl2 { cursor: pointer; }
-.hidden { display: none; }
+.hidden { display:none; }
 
-.lvl1 td:first-child::before { content: "▶ "; font-size:10px; }
-.lvl1.open td:first-child::before { content: "▼ "; }
+.lvl1 td:first-child::before { content:"▶ "; }
+.lvl1.open td:first-child::before { content:"▼ "; }
 
-.lvl2 td:first-child::before { content: "▶ "; font-size:10px; }
-.lvl2.open td:first-child::before { content: "▼ "; }
+.lvl2 td:first-child::before { content:"▶ "; }
+.lvl2.open td:first-child::before { content:"▼ "; }
 
-/* indentation */
-.lvl1 td:first-child { padding-left: 12px; }
-.lvl2 td:first-child { padding-left: 28px; }
-.lvl3 td:first-child { padding-left: 48px; }
+.lvl1 td { padding-left:10px; }
+.lvl2 td { padding-left:25px; }
+.lvl3 td { padding-left:45px; }
 
 </style>
 </head>
@@ -119,21 +116,17 @@ tfoot td {
   <div class="kpi-pill">CP : <span id="kpi-cp">0</span> M€</div>
 </div>
 
-<!-- CARD -->
+<!-- ================= TABLEAU PRINCIPAL ================= -->
 <div class="tb-card">
-
-  <div class="tb-card-header">
-    💰 Suivi de la consommation par brique budgétaire
-  </div>
-
+  <div class="tb-card-header">Suivi de la consommation par brique budgétaire</div>
   <div class="tb-card-body">
 
     <table class="tb-budg-table">
       <thead>
         <tr>
           <th>Brique / Sous-brique / Activité</th>
-          <th>AE consommées (M€)</th>
-          <th>CP consommés (M€)</th>
+          <th>AE (M€)</th>
+          <th>CP (M€)</th>
         </tr>
       </thead>
 
@@ -149,24 +142,55 @@ tfoot td {
     </table>
 
   </div>
+</div>
 
+<!-- ================= TABLEAU RECEPTION ================= -->
+<div class="tb-card">
+  <div class="tb-card-header">Suivi des dépenses de réception</div>
+  <div class="tb-card-body">
+
+    <table class="tb-budg-table">
+      <thead>
+        <tr>
+          <th>Centre financier</th>
+          <th>AE (M€)</th>
+          <th>CP (M€)</th>
+        </tr>
+      </thead>
+
+      <tbody id="tbody-reception"></tbody>
+
+      <tfoot>
+        <tr>
+          <td>TOTAL</td>
+          <td id="rec-ae">0</td>
+          <td id="rec-cp">0</td>
+        </tr>
+      </tfoot>
+    </table>
+
+  </div>
 </div>
 
 </div>
 
 <script>
 
-grist.ready({requiredAccess: 'read table'});
+const toM = v => (v / 1_000_000);
 
-function toMillions(val) {
-  return (val / 1_000_000).toFixed(2);
-}
+/* ===== INIT ===== */
+grist.ready({requiredAccess: 'read table'});
 
 grist.onRecords(function(records) {
 
   const agg = {};
+  const reception = {};
+
   let totalAE = 0;
   let totalCP = 0;
+
+  let recAE = 0;
+  let recCP = 0;
 
   records.forEach(r => {
 
@@ -177,6 +201,7 @@ grist.onRecords(function(records) {
     const AE = Number(r.AE) || 0;
     const CP = Number(r.CP) || 0;
 
+    /* ===== AGRÉGATION PRINCIPALE ===== */
     if (!agg[brique]) agg[brique] = {};
     if (!agg[brique][sous]) agg[brique][sous] = {};
     if (!agg[brique][sous][act]) {
@@ -188,53 +213,64 @@ grist.onRecords(function(records) {
 
     totalAE += AE;
     totalCP += CP;
+
+    /* ===== FILTRE RECEPTION ===== */
+    if (String(r.pcepropre) === "6156000000") {
+
+      const cf = r.centrefinancier || "Non défini";
+
+      if (!reception[cf]) reception[cf] = { AE:0, CP:0 };
+
+      reception[cf].AE += AE;
+      reception[cf].CP += CP;
+
+      recAE += AE;
+      recCP += CP;
+    }
+
   });
 
-  const tbody = document.getElementById("tbody");
+  /* ===== RENDER PRINCIPAL ===== */
   let html = "";
 
   Object.entries(agg).forEach(([brique, souss], i) => {
 
-    let briqueAE = 0;
-    let briqueCP = 0;
+    let bAE = 0, bCP = 0;
 
     Object.values(souss).forEach(acts => {
-      Object.values(acts).forEach(val => {
-        briqueAE += val.AE;
-        briqueCP += val.CP;
+      Object.values(acts).forEach(v => {
+        bAE += v.AE;
+        bCP += v.CP;
       });
     });
 
-    html += `
-    <tr class="lvl1" data-brique="${i}">
+    html += `<tr class="lvl1" data-brique="${i}">
       <td>${brique}</td>
-      <td>${toMillions(briqueAE)}</td>
-      <td>${toMillions(briqueCP)}</td>
+      <td>${toM(bAE).toFixed(2)}</td>
+      <td>${toM(bCP).toFixed(2)}</td>
     </tr>`;
 
     Object.entries(souss).forEach(([sous, acts], j) => {
 
-      let sousAE = 0;
-      let sousCP = 0;
+      let sAE = 0, sCP = 0;
 
-      Object.values(acts).forEach(val => {
-        sousAE += val.AE;
-        sousCP += val.CP;
+      Object.values(acts).forEach(v => {
+        sAE += v.AE;
+        sCP += v.CP;
       });
 
-      html += `
-      <tr class="lvl2 hidden" data-parent="${i}" data-sous="${i}-${j}">
+      html += `<tr class="lvl2 hidden" data-parent="${i}" data-sous="${i}-${j}">
         <td>${sous}</td>
-        <td>${toMillions(sousAE)}</td>
-        <td>${toMillions(sousCP)}</td>
+        <td>${toM(sAE).toFixed(2)}</td>
+        <td>${toM(sCP).toFixed(2)}</td>
       </tr>`;
 
-      Object.entries(acts).forEach(([act, val]) => {
-        html += `
-        <tr class="lvl3 hidden" data-parent="${i}-${j}">
+      Object.entries(acts).forEach(([act, v]) => {
+
+        html += `<tr class="lvl3 hidden" data-parent="${i}-${j}">
           <td>${act}</td>
-          <td>${toMillions(val.AE)}</td>
-          <td>${toMillions(val.CP)}</td>
+          <td>${toM(v.AE).toFixed(2)}</td>
+          <td>${toM(v.CP).toFixed(2)}</td>
         </tr>`;
       });
 
@@ -242,26 +278,16 @@ grist.onRecords(function(records) {
 
   });
 
-  tbody.innerHTML = html;
+  document.getElementById("tbody").innerHTML = html;
 
-  /* ACCORDION */
+  /* ===== ACCORDION ===== */
   document.querySelectorAll(".lvl1").forEach(row => {
     row.onclick = () => {
       const id = row.dataset.brique;
-      const isOpen = row.classList.toggle("open");
+      const open = row.classList.toggle("open");
 
       document.querySelectorAll(`.lvl2[data-parent='${id}']`)
-        .forEach(el => el.classList.toggle("hidden", !isOpen));
-
-      document.querySelectorAll(`.lvl3`)
-        .forEach(el => {
-          if (el.dataset.parent.startsWith(id + "-")) {
-            el.classList.add("hidden");
-          }
-        });
-
-      document.querySelectorAll(`.lvl2[data-parent='${id}']`)
-        .forEach(el => el.classList.remove("open"));
+        .forEach(el => el.classList.toggle("hidden", !open));
     };
   });
 
@@ -269,19 +295,35 @@ grist.onRecords(function(records) {
     row.onclick = (e) => {
       e.stopPropagation();
       const id = row.dataset.sous;
-      const isOpen = row.classList.toggle("open");
+      const open = row.classList.toggle("open");
 
       document.querySelectorAll(`.lvl3[data-parent='${id}']`)
-        .forEach(el => el.classList.toggle("hidden", !isOpen));
+        .forEach(el => el.classList.toggle("hidden", !open));
     };
   });
 
-  /* KPI */
-  document.getElementById("kpi-ae").innerText = toMillions(totalAE);
-  document.getElementById("kpi-cp").innerText = toMillions(totalCP);
+  /* ===== KPI ===== */
+  document.getElementById("kpi-ae").innerText = toM(totalAE).toFixed(2);
+  document.getElementById("kpi-cp").innerText = toM(totalCP).toFixed(2);
 
-  document.getElementById("total-ae").innerText = toMillions(totalAE);
-  document.getElementById("total-cp").innerText = toMillions(totalCP);
+  document.getElementById("total-ae").innerText = toM(totalAE).toFixed(2);
+  document.getElementById("total-cp").innerText = toM(totalCP).toFixed(2);
+
+  /* ===== RENDER RECEPTION ===== */
+  let htmlRec = "";
+
+  Object.entries(reception).forEach(([cf, v]) => {
+    htmlRec += `<tr>
+      <td>${cf}</td>
+      <td>${toM(v.AE).toFixed(2)}</td>
+      <td>${toM(v.CP).toFixed(2)}</td>
+    </tr>`;
+  });
+
+  document.getElementById("tbody-reception").innerHTML = htmlRec;
+
+  document.getElementById("rec-ae").innerText = toM(recAE).toFixed(2);
+  document.getElementById("rec-cp").innerText = toM(recCP).toFixed(2);
 
 });
 
