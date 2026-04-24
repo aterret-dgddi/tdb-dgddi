@@ -741,34 +741,6 @@ function reanalyser() { analyserMapping(); }
    GÉNÉRATION DU PREVIEW
 ───────────────────────────────────────────────── */
 function genererPreview() {
-  var colSrc = document.getElementById('col-source').value;
-  var colAn  = document.getElementById('col-annee').value;
-  var colVal = document.getElementById('col-valeur').value;
-
-  var equivMap = {};
-  G.equivalence.forEach(function(e){
-    var src = strVal(e.Source_SI || e.source_si || e['Source SI'] || '');
-    var dst = strVal(e.Structure  || e.structure  || '');
-    if (src && dst) equivMap[src] = dst;
-  });
-  var structByNom = {};
-  G.tableStruct.forEach(function(s){ structByNom[strVal(s.Nom || s.nom || '')] = s.id; });
-
-  // Index existant : RH ou Informatique selon le mode
-  var rhIndex = {};
-  var tableSrc = G.modeInformatique ? (G.tableIT||[]) : G.tableRH;
-  tableSrc.forEach(function(r){
-    var key = (r.Structure||r.structure||'') + '|' + (r.Annee||r.annee||'');
-    rhIndex[key] = r.id;
-  });
-
-  G.preview = [];
-  for(var i=0; i<G.rawRows.length; i++){
-    var r = G.rawRows[i];
-    var src    = r[colSrc];
-    var anneeR = Number(r[colAn]) || 0;
-
-
     // ── Mode Frais de mission : format long (une ligne par observation) ──
     if(G.modeFraisMission){
       console.log('[FM genererPreview] Début regroupement, rawRows:', G.rawRows.length);
@@ -838,6 +810,35 @@ function genererPreview() {
       afficherPreview();
       return;
     }
+
+
+    var colSrc = document.getElementById('col-source').value;
+  var colAn  = document.getElementById('col-annee').value;
+  var colVal = document.getElementById('col-valeur').value;
+
+  var equivMap = {};
+  G.equivalence.forEach(function(e){
+    var src = strVal(e.Source_SI || e.source_si || e['Source SI'] || '');
+    var dst = strVal(e.Structure  || e.structure  || '');
+    if (src && dst) equivMap[src] = dst;
+  });
+  var structByNom = {};
+  G.tableStruct.forEach(function(s){ structByNom[strVal(s.Nom || s.nom || '')] = s.id; });
+
+  // Index existant : RH ou Informatique selon le mode
+  var rhIndex = {};
+  var tableSrc = G.modeInformatique ? (G.tableIT||[]) : G.tableRH;
+  tableSrc.forEach(function(r){
+    var key = (r.Structure||r.structure||'') + '|' + (r.Annee||r.annee||'');
+    rhIndex[key] = r.id;
+  });
+
+  G.preview = [];
+  for(var i=0; i<G.rawRows.length; i++){
+    var r = G.rawRows[i];
+    var src    = r[colSrc];
+    var anneeR = Number(r[colAn]) || 0;
+
 
     // ── Mode Informatique : 3 colonnes simultanées ──
     if(G.modeInformatique){
