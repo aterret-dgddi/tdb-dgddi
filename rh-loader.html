@@ -549,6 +549,60 @@ function onDrop(e) {
 function lireCSV(file){
   setStatus('Lecture du fichier...', false);
   
+  var ext = file.name.split('.').pop().toLowerCase();
+  
+  // Si Excel : utiliser SheetJS
+  if(ext === 'xlsx' || ext === 'xls'){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        var data = new Uint8Array(e.target.result);
+        var workbook = XLSX.read(data, {type: 'array'});
+        var sheet = workbook.Sheets[workbook.SheetNames[0]];
+        var jsonData = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+        
+        // Convertir en format Papa Parse
+        var headers = jsonData[0];
+        var rows = jsonData.slice(1).map(function(row){
+          var obj = {};
+          headers.forEach(function(h, i){ obj[h] = row[i]; });
+          return obj;
+        });
+        
+        G.rawRows = rows.filter(function(r){ return Object.values(r).some(function(v){ return v !== null && v !== ''; }); });
+        G.colsDetectees = headers;
+        setStatus('Excel parsé : ' + G.rawRows.length + ' lignes, colonnes : ' + G.colsDetectees.join(', '), true);
+        
+        // Détection automatique mode FM
+        var hasNatureMission = G.colsDetectees.some(function(c){ return String(c).match(/NatureMission/i); });
+        var hasNaturefrais = G.colsDetectees.some(function(c){ return String(c).match(/Naturefrais|Nature.?frais/i); });
+        var isFmFile = hasNatureMission && hasNaturefrais;
+        
+        console.log('[lireCSV Excel] Colonnes:', G.colsDetectees);
+        console.log('[lireCSV Excel] Mode FM actif:', G.modeFraisMission, ', Détection auto FM:', isFmFile);
+        
+        // Mode FM : pré-remplir
+        if(G.modeFraisMission || isFmFile){
+          document.getElementById('col-source').value = detectCol(['Service','Structure','service','structure']);
+          document.getElementById('col-annee').value = detectCol(['Année budgétaire','Annee','Année','annee']);
+          G.colTypeMission = detectCol(['NatureMission','Type mission','TypeMission','nature_mission']);
+          G.colNatureFrais = detectCol(['Naturefrais','Nature frais','NatureFrais','nature_frais','Naturefrais']);
+          G.colValeur = detectCol(['Valeur','Montant','valeur','montant']);
+          console.log('[lireCSV FM] Colonnes FM:', G.colTypeMission, G.colNatureFrais, G.colValeur);
+          log('Mode Frais de mission : colonnes détectées', 'log-ok');
+        }
+        
+        afficherSelecteursColonnes();
+      } catch(err){
+        setStatus('Erreur lecture Excel : ' + err.message, false);
+        log('Erreur Excel : ' + err.message, 'log-err');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    return;
+  }
+  
+  // Sinon CSV : Papa Parse
   var config = {
     complete: function(results) {
       G.rawRows = results.data.filter(function(r){ return Object.values(r).some(function(v){ return v !== null && v !== ''; }); });
@@ -556,23 +610,18 @@ function lireCSV(file){
       setStatus('Fichier chargé : ' + G.rawRows.length + ' lignes', true);
       log('Colonnes détectées : ' + G.colsDetectees.join(', '), 'log-info');
       
-      // Détection automatique mode FM si colonnes typiques présentes
       var hasNatureMission = G.colsDetectees.some(function(c){ return c.match(/NatureMission/i); });
       var hasNaturefrais = G.colsDetectees.some(function(c){ return c.match(/Naturefrais|Nature frais/i); });
       var isFmFile = hasNatureMission && hasNaturefrais;
       
-      console.log('[lireCSV] Mode FM actif:', G.modeFraisMission, ', Détection auto FM:', isFmFile);
-      
-      // Mode FM : pré-remplir les sélecteurs (si mode actif OU fichier détecté FM)
       if(G.modeFraisMission || isFmFile){
         document.getElementById('col-source').value = detectCol(['Service','Structure','service','structure']);
         document.getElementById('col-annee').value = detectCol(['Année budgétaire','Annee','Année','annee']);
-        // Colonnes spéciales FM
         G.colTypeMission = detectCol(['NatureMission','Type mission','TypeMission','nature_mission']);
         G.colNatureFrais = detectCol(['Naturefrais','Nature frais','NatureFrais','nature_frais']);
         G.colValeur = detectCol(['Valeur','Montant','valeur','montant']);
-        console.log('[lireCSV FM] Colonnes détectées: Type=', G.colTypeMission, 'Nature=', G.colNatureFrais, 'Val=', G.colValeur);
-        log('Mode Frais de mission : colonnes détectées automatiquement', 'log-ok');
+        console.log('[lireCSV FM] Colonnes FM:', G.colTypeMission, G.colNatureFrais, G.colValeur);
+        log('Mode Frais de mission : colonnes détectées', 'log-ok');
       }
       
       afficherSelecteursColonnes();
