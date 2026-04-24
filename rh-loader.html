@@ -571,7 +571,9 @@ function lireCSV(file){
         
         G.rawRows = rows.filter(function(r){ return Object.values(r).some(function(v){ return v !== null && v !== ''; }); });
         G.colsDetectees = headers;
+        console.log('[lireCSV Excel STEP 1] rawRows.length=', G.rawRows.length, ', colsDetectees=', G.colsDetectees);
         setStatus('Excel parsé : ' + G.rawRows.length + ' lignes, colonnes : ' + G.colsDetectees.join(', '), true);
+        console.log('[lireCSV Excel STEP 2] Après setStatus');
         
         // Détection automatique mode FM
         console.log('[lireCSV Excel AVANT] Colonnes détectées:', G.colsDetectees);
