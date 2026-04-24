@@ -161,7 +161,7 @@ grist.onRecords(function(records) {
   console.log("Agrégé:", agg);
 
   /* ===== RENDER ===== */
- const tbody = document.getElementById("tbody");
+const tbody = document.getElementById("tbody");
 
 let html = "";
 
@@ -231,11 +231,13 @@ Object.entries(agg).forEach(([brique, souss]) => {
   </tr>`;
 });
 
+tbody.innerHTML = html;
+
 /* injection propre */
 tbody.innerHTML = html;
   /* ===== KPI ===== */
-  document.getElementById("kpi-ae").innerText = totalAE.toLocaleString();
-  document.getElementById("kpi-cp").innerText = totalCP.toLocaleString();
+ document.getElementById("kpi-ae").innerText = totalAE.toLocaleString();
+document.getElementById("kpi-cp").innerText = totalCP.toLocaleString();
 
   document.getElementById("total-ae").innerText = totalAE.toLocaleString();
   document.getElementById("total-cp").innerText = totalCP.toLocaleString();
