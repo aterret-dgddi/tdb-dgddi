@@ -116,9 +116,9 @@ tfoot td {
 
 </div>
 
+
 <script>
 
-/* ===== INIT GRIST ===== */
 grist.ready({requiredAccess: 'read table'});
 
 grist.onRecords(function(records) {
@@ -132,90 +132,111 @@ grist.onRecords(function(records) {
 
   records.forEach(r => {
 
- 
+    const brique = r.brique || "Non défini";
+    const sous = r.sous_brique || "Non défini";
+    const act = r.activite || "Non défini";
+
+    const AE = Number(r.AE) || 0;
+    const CP = Number(r.CP) || 0;
+
+    // 🔥 AGRÉGATION (manquante chez toi)
+    if (!agg[brique]) agg[brique] = {};
+    if (!agg[brique][sous]) agg[brique][sous] = {};
+    if (!agg[brique][sous][act]) {
+      agg[brique][sous][act] = { AE: 0, CP: 0 };
+    }
+
+    agg[brique][sous][act].AE += AE;
+    agg[brique][sous][act].CP += CP;
+
+    totalAE += AE;
+    totalCP += CP;
+  });
+
+  console.log("Agrégé:", agg);
+
   /* ===== RENDER ===== */
-const tbody = document.getElementById("tbody");
+  const tbody = document.getElementById("tbody");
 
-let html = "";
+  let html = "";
 
-Object.entries(agg).forEach(([brique, souss]) => {
+  Object.entries(agg).forEach(([brique, souss]) => {
 
-  let briqueAE = 0;
-  let briqueCP = 0;
-
-  html += `
-  <tr class="lvl1">
-    <td>${brique}</td>
-    <td></td>
-    <td></td>
-    <td></td>
-    <td></td>
-  </tr>`;
-
-  Object.entries(souss).forEach(([sous, acts]) => {
-
-    let sousAE = 0;
-    let sousCP = 0;
+    let briqueAE = 0;
+    let briqueCP = 0;
 
     html += `
-    <tr class="lvl2">
+    <tr class="lvl1">
+      <td>${brique}</td>
       <td></td>
-      <td>${sous}</td>
       <td></td>
       <td></td>
       <td></td>
     </tr>`;
 
-    Object.entries(acts).forEach(([act, val]) => {
+    Object.entries(souss).forEach(([sous, acts]) => {
 
-      sousAE += val.AE;
-      sousCP += val.CP;
+      let sousAE = 0;
+      let sousCP = 0;
 
       html += `
-      <tr class="lvl3">
+      <tr class="lvl2">
+        <td></td>
+        <td>${sous}</td>
         <td></td>
         <td></td>
-        <td>${act}</td>
-        <td>${val.AE.toLocaleString()}</td>
-        <td>${val.CP.toLocaleString()}</td>
+        <td></td>
+      </tr>`;
+
+      Object.entries(acts).forEach(([act, val]) => {
+
+        sousAE += val.AE;
+        sousCP += val.CP;
+
+        html += `
+        <tr class="lvl3">
+          <td></td>
+          <td></td>
+          <td>${act}</td>
+          <td>${val.AE.toLocaleString()}</td>
+          <td>${val.CP.toLocaleString()}</td>
+        </tr>`;
+      });
+
+      briqueAE += sousAE;
+      briqueCP += sousCP;
+
+      html += `
+      <tr class="lvl2">
+        <td></td>
+        <td><strong>Total ${sous}</strong></td>
+        <td></td>
+        <td><strong>${sousAE.toLocaleString()}</strong></td>
+        <td><strong>${sousCP.toLocaleString()}</strong></td>
       </tr>`;
     });
 
-    briqueAE += sousAE;
-    briqueCP += sousCP;
-
     html += `
-    <tr class="lvl2">
+    <tr class="lvl1">
+      <td><strong>Total ${brique}</strong></td>
       <td></td>
-      <td><strong>Total ${sous}</strong></td>
       <td></td>
-      <td><strong>${sousAE.toLocaleString()}</strong></td>
-      <td><strong>${sousCP.toLocaleString()}</strong></td>
+      <td><strong>${briqueAE.toLocaleString()}</strong></td>
+      <td><strong>${briqueCP.toLocaleString()}</strong></td>
     </tr>`;
   });
 
-  html += `
-  <tr class="lvl1">
-    <td><strong>Total ${brique}</strong></td>
-    <td></td>
-    <td></td>
-    <td><strong>${briqueAE.toLocaleString()}</strong></td>
-    <td><strong>${briqueCP.toLocaleString()}</strong></td>
-  </tr>`;
-});
+  tbody.innerHTML = html;
 
-tbody.innerHTML = html;
-
-/* injection propre */
-tbody.innerHTML = html;
   /* ===== KPI ===== */
- document.getElementById("kpi-ae").innerText = totalAE.toLocaleString();
-document.getElementById("kpi-cp").innerText = totalCP.toLocaleString();
+  document.getElementById("kpi-ae").innerText = totalAE.toLocaleString();
+  document.getElementById("kpi-cp").innerText = totalCP.toLocaleString();
 
   document.getElementById("total-ae").innerText = totalAE.toLocaleString();
   document.getElementById("total-cp").innerText = totalCP.toLocaleString();
 
 });
+
 
 </script>
 
