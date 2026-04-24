@@ -75,6 +75,39 @@ tfoot td {
   background:#d6dde8;
 }
 
+/* ===== ACCORDION ===== */
+
+.lvl1 {
+  cursor: pointer;
+}
+
+.lvl2 {
+  cursor: pointer;
+}
+
+.hidden {
+  display: none;
+}
+
+/* petit indicateur visuel */
+.lvl1 td:first-child::before {
+  content: "▶ ";
+  font-size: 10px;
+}
+
+.lvl1.open td:first-child::before {
+  content: "▼ ";
+}
+
+.lvl2 td:nth-child(2)::before {
+  content: "▶ ";
+  font-size: 10px;
+}
+
+.lvl2.open td:nth-child(2)::before {
+  content: "▼ ";
+}
+  
 </style>
 </head>
 
@@ -155,17 +188,16 @@ grist.onRecords(function(records) {
 
   console.log("Agrégé:", agg);
 
- /* ===== RENDER COMPACT ===== */
+/* ===== RENDER AVEC ACCORDION ===== */
 const tbody = document.getElementById("tbody");
 
 let html = "";
 
-Object.entries(agg).forEach(([brique, souss]) => {
+Object.entries(agg).forEach(([brique, souss], i) => {
 
   let briqueAE = 0;
   let briqueCP = 0;
 
-  // calcul total brique
   Object.values(souss).forEach(acts => {
     Object.values(acts).forEach(val => {
       briqueAE += val.AE;
@@ -174,7 +206,7 @@ Object.entries(agg).forEach(([brique, souss]) => {
   });
 
   html += `
-  <tr class="lvl1">
+  <tr class="lvl1" data-brique="${i}">
     <td>${brique}</td>
     <td></td>
     <td></td>
@@ -182,7 +214,7 @@ Object.entries(agg).forEach(([brique, souss]) => {
     <td><strong>${briqueCP.toLocaleString()}</strong></td>
   </tr>`;
 
-  Object.entries(souss).forEach(([sous, acts]) => {
+  Object.entries(souss).forEach(([sous, acts], j) => {
 
     let sousAE = 0;
     let sousCP = 0;
@@ -193,7 +225,7 @@ Object.entries(agg).forEach(([brique, souss]) => {
     });
 
     html += `
-    <tr class="lvl2">
+    <tr class="lvl2 hidden" data-parent="${i}" data-sous="${i}-${j}">
       <td></td>
       <td>${sous}</td>
       <td></td>
@@ -204,7 +236,7 @@ Object.entries(agg).forEach(([brique, souss]) => {
     Object.entries(acts).forEach(([act, val]) => {
 
       html += `
-      <tr class="lvl3">
+      <tr class="lvl3 hidden" data-parent="${i}-${j}">
         <td></td>
         <td></td>
         <td>${act}</td>
@@ -218,6 +250,53 @@ Object.entries(agg).forEach(([brique, souss]) => {
 });
 
 tbody.innerHTML = html;
+
+/* ===== ACCORDION LOGIC ===== */
+
+// click sur brique
+document.querySelectorAll(".lvl1").forEach(row => {
+  row.addEventListener("click", () => {
+
+    const id = row.dataset.brique;
+    const isOpen = row.classList.contains("open");
+
+    row.classList.toggle("open");
+
+    document.querySelectorAll(`.lvl2[data-parent='${id}']`)
+      .forEach(el => {
+        el.classList.toggle("hidden", isOpen);
+      });
+
+    // ferme aussi les niveaux 3
+    document.querySelectorAll(`.lvl3`)
+      .forEach(el => {
+        if (el.dataset.parent.startsWith(id + "-")) {
+          el.classList.add("hidden");
+        }
+      });
+
+    document.querySelectorAll(`.lvl2[data-parent='${id}']`)
+      .forEach(el => el.classList.remove("open"));
+  });
+});
+
+// click sur sous-brique
+document.querySelectorAll(".lvl2").forEach(row => {
+  row.addEventListener("click", (e) => {
+
+    e.stopPropagation();
+
+    const id = row.dataset.sous;
+    const isOpen = row.classList.contains("open");
+
+    row.classList.toggle("open");
+
+    document.querySelectorAll(`.lvl3[data-parent='${id}']`)
+      .forEach(el => {
+        el.classList.toggle("hidden", isOpen);
+      });
+  });
+});
 
   /* ===== KPI ===== */
   document.getElementById("kpi-ae").innerText = totalAE.toLocaleString();
