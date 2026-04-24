@@ -7,12 +7,12 @@
 <title>Dashboard Budget DGDDI</title>
 
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-
+<link rel="stylesheet" href="https://www.systeme-de-design.gouv.fr/dist/fonts/Marianne/marianne.css">
 <style>
 
 /* ===== BASE ===== */
 body {
-  font-family: Arial;
+  font-family: "Marianne", Arial, sans-serif;
   margin: 20px;
   background: #fff;
 }
@@ -44,6 +44,7 @@ body {
   min-width: 140px;
   text-align: center;
   font-weight: 600;
+   font-size: 13px;
 }
 
 .kpi-good { background:#e8f5e9; color:#1b5e20; }
@@ -53,7 +54,7 @@ body {
 .tb-budg-table {
   width:100%;
   border-collapse: collapse;
-  font-size:12px;
+  font-size:11px;
 }
 
 .tb-budg-table th,
@@ -220,6 +221,13 @@ grist.onRecords(function(records) {
 
   console.log("Agrégé:", agg);
 
+function formatMillions(value) {
+  return (value / 1_000_000).toLocaleString('fr-FR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  }) + " M€";
+}
+  
 /* ===== RENDER 1 COLONNE ===== */
 const tbody = document.getElementById("tbody");
 
@@ -266,8 +274,8 @@ Object.entries(agg).forEach(([brique, souss], i) => {
       html += `
       <tr class="lvl3 hidden" data-parent="${i}-${j}">
         <td>${act}</td>
-        <td>${val.AE.toLocaleString()}</td>
-        <td>${val.CP.toLocaleString()}</td>
+        <td>${formatMillions(val.AE)}</td>
+        <td>${formatMillions(val.CP)}</td>
       </tr>`;
     });
 
