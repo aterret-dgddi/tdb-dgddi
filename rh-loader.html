@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chargement données RH</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bleu:#002F6C;--bleu2:#1351A8;--bleu-pale:#E6ECF8;
+  --vert:#1A6B3C;--vert-pale:#E8F5EE;
+  --orange:#C05A00;--rouge:#B52020;--rouge-pale:#FDECEA;
+  --gris1:#1E2D3D;--gris2:#4A5A6A;--gris3:#8A9BAA;--gris4:#EEF2F7;
+  --bord:#CDD6E4;--blanc:#fff;
+  --ombre:0 2px 12px rgba(0,20,70,.10);
+}
+body{font-family:'Cabin',sans-serif;background:#F2F5FA;color:var(--gris1);font-size:13px;min-height:100vh;}
+@import url('https://fonts.googleapis.com/css2?family=Cabin:wght@400;600;700&family=Libre+Baskerville:wght@700&display=swap');
+
+/* ── HEADER ── */
+#header{background:var(--bleu);padding:12px 20px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 10px rgba(0,20,70,.3);}
+#header h1{font-family:'Libre Baskerville',serif;font-size:14px;color:#fff;font-weight:700;}
+#header .sub{font-size:10.5px;color:rgba(255,255,255,.6);margin-top:1px;}
+
+/* ── LAYOUT ── */
+#main{max-width:900px;margin:20px auto;padding:0 16px 60px;}
+
+/* ── CARD ── */
+.card{background:#fff;border:1px solid var(--bord);border-radius:10px;box-shadow:var(--ombre);margin-bottom:18px;overflow:hidden;}
+.card-hdr{padding:12px 18px;border-bottom:1px solid var(--bord);display:flex;align-items:center;gap:10px;}
+.card-hdr h2{font-size:13px;font-weight:700;color:var(--bleu);}
+.card-body{padding:18px;}
+
+/* ── INDICATEUR CONFIG ── */
+.ind-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:16px;}
+.ind-btn{
+  padding:9px 12px;border:2px solid var(--bord);border-radius:7px;background:#fff;
+  cursor:pointer;transition:all .15s;text-align:left;
+}
+.ind-btn:hover{border-color:var(--bleu2);background:var(--bleu-pale);}
+.ind-btn.active{border-color:var(--bleu);background:var(--bleu);color:#fff;}
+.ind-btn.active .ind-col{color:rgba(255,255,255,.7);}
+.ind-name{font-weight:700;font-size:12px;display:block;}
+.ind-col{font-size:10px;color:var(--gris3);display:block;margin-top:2px;}
+
+/* ── DROP ZONE ── */
+#drop-zone{
+  border:2.5px dashed var(--bord);border-radius:8px;
+  padding:36px 20px;text-align:center;
+  background:#FAFBFD;cursor:pointer;
+  transition:all .2s;
+}
+#drop-zone:hover,#drop-zone.over{border-color:var(--bleu2);background:var(--bleu-pale);}
+#drop-zone.has-file{border-color:var(--vert);background:var(--vert-pale);}
+.drop-ico{font-size:32px;margin-bottom:10px;display:block;}
+.drop-txt{font-weight:700;color:var(--gris2);font-size:13px;}
+.drop-sub{font-size:11px;color:var(--gris3);margin-top:4px;}
+#file-input{display:none;}
+
+/* ── PARAMS ── */
+.params-row{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;}
+.param-group{flex:1;min-width:160px;}
+.param-group label{display:block;font-size:10.5px;font-weight:700;color:var(--gris2);letter-spacing:.4px;text-transform:uppercase;margin-bottom:5px;}
+.param-group select,.param-group input[type=number]{
+  width:100%;padding:7px 10px;border:1.5px solid var(--bord);border-radius:5px;
+  font-family:'Cabin',sans-serif;font-size:12px;color:var(--gris1);background:#fff;
+  outline:none;transition:border-color .15s;
+}
+.param-group select:focus,.param-group input:focus{border-color:var(--bleu2);}
+
+/* ── MAPPING ── */
+.map-hdr{display:grid;grid-template-columns:1fr 30px 1fr;gap:8px;align-items:center;
+         font-size:10px;font-weight:700;color:var(--gris3);text-transform:uppercase;
+         letter-spacing:.4px;margin-bottom:6px;padding:0 2px;}
+.map-row{display:grid;grid-template-columns:1fr 30px 1fr;gap:8px;align-items:center;
+         margin-bottom:4px;}
+.map-src{background:var(--gris4);border-radius:4px;padding:5px 8px;font-size:11.5px;
+         font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.map-arrow{text-align:center;color:var(--gris3);font-size:12px;}
+.map-dst{font-size:11.5px;color:var(--gris1);}
+.map-dst.ok{color:var(--vert);font-weight:600;}
+.map-dst.warn{color:var(--orange);font-weight:600;}
+.map-dst.err{color:var(--rouge);font-weight:600;}
+
+/* ── PREVIEW TABLE ── */
+.tscroll{overflow-x:auto;border-radius:6px;border:1px solid var(--bord);}
+table{width:100%;border-collapse:collapse;font-size:11.5px;}
+th{background:var(--bleu-pale);color:var(--bleu);padding:7px 10px;text-align:left;
+   font-weight:700;font-size:10.5px;border-bottom:2px solid var(--bord);white-space:nowrap;}
+td{padding:6px 10px;border-bottom:1px solid var(--bord);white-space:nowrap;}
+tr:last-child td{border-bottom:none;}
+.pill{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;}
+.pill-upd{background:#FFF3CD;color:#7A5800;}
+.pill-ins{background:#D4EDDA;color:#1A6B3C;}
+.pill-skip{background:#f5f5f5;color:var(--gris3);}
+.pill-err{background:#FDECEA;color:var(--rouge);}
+.tr{text-align:right;}
+
+/* ── RÉSUMÉ ── */
+.summary{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.sum-card{flex:1;min-width:100px;background:var(--gris4);border-radius:7px;padding:10px 14px;text-align:center;}
+.sum-val{font-size:22px;font-weight:700;color:var(--bleu);line-height:1;}
+.sum-lbl{font-size:9.5px;color:var(--gris2);margin-top:3px;}
+.sum-card.ins .sum-val{color:var(--vert);}
+.sum-card.upd .sum-val{color:var(--orange);}
+.sum-card.err .sum-val{color:var(--rouge);}
+
+/* ── BOUTONS ── */
+.btn-row{display:flex;gap:10px;margin-top:16px;justify-content:flex-end;}
+.btn{padding:9px 20px;border-radius:6px;font-family:'Cabin',sans-serif;font-size:13px;
+     font-weight:700;cursor:pointer;border:none;transition:all .15s;display:flex;align-items:center;gap:7px;}
+.btn-primary{background:var(--bleu);color:#fff;}
+.btn-primary:hover{background:var(--bleu2);}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed;}
+.btn-secondary{background:#fff;color:var(--gris2);border:1.5px solid var(--bord);}
+.btn-secondary:hover{background:var(--gris4);}
+.btn-danger{background:var(--rouge);color:#fff;}
+.btn-danger:disabled{opacity:.45;cursor:not-allowed;}
+
+/* ── STATUS ── */
+#status-bar{
+  background:var(--bleu-pale);border:1px solid var(--bord);border-radius:7px;
+  padding:10px 16px;margin-bottom:14px;font-size:12px;color:var(--bleu);
+  display:none;align-items:center;gap:8px;
+}
+#status-bar.err{background:var(--rouge-pale);border-color:#F5C6C6;color:var(--rouge);}
+#status-bar.ok{background:var(--vert-pale);border-color:#A8D5B7;color:var(--vert);}
+.spin{width:16px;height:16px;border:2.5px solid currentColor;border-top-color:transparent;
+      border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── PROGRESS ── */
+#prog-wrap{margin-top:10px;display:none;}
+.prog-bar{height:6px;background:var(--bord);border-radius:3px;overflow:hidden;margin-bottom:4px;}
+.prog-fill{height:100%;background:var(--bleu2);border-radius:3px;transition:width .3s;}
+.prog-lbl{font-size:10.5px;color:var(--gris2);}
+
+/* ── CONNEXION GRIST ── */
+#grist-status{padding:8px 16px;font-size:11px;color:var(--gris3);border-bottom:1px solid var(--bord);
+              display:flex;align-items:center;gap:6px;}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dot.ok{background:var(--vert);}
+.dot.warn{background:var(--orange);}
+.dot.err{background:var(--rouge);}
+
+/* ── LOG ── */
+#log{background:#0D1117;border-radius:6px;padding:10px 14px;max-height:160px;overflow-y:auto;
+     font-family:monospace;font-size:10.5px;color:#8B949E;margin-top:10px;}
+.log-ok{color:#3FB950;}
+.log-err{color:#F85149;}
+.log-warn{color:#D29922;}
+.log-info{color:#79C0FF;}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>📥 Chargement des données RH</h1>
+    <div class="sub">Import depuis fichier SI → table RH Grist via table Equivalence</div>
+  </div>
+</div>
+
+<div id="grist-status">
+  <div class="dot warn" id="grist-dot"></div>
+  <span id="grist-txt">Connexion à Grist en cours…</span>
+</div>
+
+<div id="main">
+
+  <!-- STEP 1 : Indicateur -->
+  <div class="card">
+    <div class="card-hdr"><h2>① Indicateur à charger</h2></div>
+    <div class="card-body">
+      <div class="ind-grid" id="ind-btns">
+        <button class="ind-btn active" data-col="ETPT_SU" onclick="selectIndicateur(this)">
+          <span class="ind-name">ETPT SU</span>
+          <span class="ind-col">ETPT_SU</span>
+        </button>
+        <button class="ind-btn" data-col="ETPT_AGCO" onclick="selectIndicateur(this)">
+          <span class="ind-name">ETPT AGCO</span>
+          <span class="ind-col">ETPT_AGCO</span>
+        </button>
+        <button class="ind-btn" data-col="MasseSalariale" onclick="selectIndicateur(this)">
+          <span class="ind-name">Masse salariale</span>
+          <span class="ind-col">MasseSalariale</span>
+        </button>
+        <button class="ind-btn" data-col="AgeMoyen" onclick="selectIndicateur(this)">
+          <span class="ind-name">Âge moyen</span>
+          <span class="ind-col">AgeMoyen</span>
+        </button>
+        <button class="ind-btn" data-col="AbsenteismeJours" onclick="selectIndicateur(this)">
+          <span class="ind-name">Absentéisme</span>
+          <span class="ind-col">AbsenteismeJours</span>
+        </button>
+        <button class="ind-btn" data-col="JoursFormationParAgent" onclick="selectIndicateur(this)">
+          <span class="ind-name">J. formation</span>
+          <span class="ind-col">JoursFormationParAgent</span>
+        </button>
+        <button class="ind-btn" data-col="EffectifsCibles" onclick="selectIndicateur(this)">
+          <span class="ind-name">Effectifs cibles</span>
+          <span class="ind-col">EffectifsCibles</span>
+        </button>
+        <button class="ind-btn" data-col="__INFORMATIQUE__" onclick="selectIndicateur(this)" style="border-style:dashed;">
+          <span class="ind-name">💻 Informatique</span>
+          <span class="ind-col">Dépenses + PC (table Informatique)</span>
+        </button>
+      </div>
+      <div id="info-mode-it" style="display:none;margin-top:10px;padding:10px 12px;background:#EEF2F7;border-radius:6px;border-left:3px solid #1351A8;">
+        <div style="font-size:11px;font-weight:700;color:#002F6C;margin-bottom:4px;">💻 Mode import Informatique</div>
+        <div style="font-size:11px;color:#4A5A6A;">
+          Le fichier doit contenir les colonnes <strong>DepensesBureautique</strong>, <strong>NbPCPortable</strong> et <strong>NbPCBureau</strong>.<br>
+          Les données seront écrites dans la table <strong>Informatique</strong> (pas RH).
+        </div>
+      </div>
+      <div id="etpt-mois-wrap"  style="margin-top:10px;padding:10px 12px;background:#EEF2F7;border-radius:6px;border-left:3px solid #1351A8;display:none;">
+        <div style="font-size:11px;font-weight:700;color:#002F6C;margin-bottom:6px;">⚙️ Calcul ETPT — normalisation mensuelle</div>
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+          <label style="font-size:11px;color:#4A5A6A;">
+            <input type="radio" name="etpt-mode" value="annee" checked onchange="updateEtptMode()">
+            Année complète (÷ 12)
+          </label>
+          <label style="font-size:11px;color:#4A5A6A;">
+            <input type="radio" name="etpt-mode" value="mois" onchange="updateEtptMode()">
+            Année en cours (÷ mois écoulés)
+          </label>
+          <div id="etpt-mois-input" style="display:none;align-items:center;gap:6px;">
+            <span style="font-size:11px;color:#4A5A6A;">Mois écoulés :</span>
+            <input type="number" id="etpt-mois" min="1" max="12" value="3"
+              style="width:56px;padding:4px 7px;border:1.5px solid #CDD6E4;border-radius:4px;font-size:12px;">
+            <span style="font-size:10px;color:#8A9BAA;">(jan=1, fév=2, mar=3…)</span>
+          </div>
+        </div>
+        <div style="font-size:10.5px;color:#8A9BAA;margin-top:6px;">
+          Le fichier SI contient <strong>12 × ETPT mensuel</strong>. Le widget divise automatiquement par le diviseur choisi.
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--gris3);margin-top:8px;">
+        Sélectionnez l'indicateur correspondant au fichier que vous allez déposer.
+        Le nom du fichier est analysé pour une suggestion automatique.
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 : Fichier -->
+  <div class="card">
+    <div class="card-hdr"><h2>② Fichier source SI</h2></div>
+    <div class="card-body">
+      <div id="drop-zone" onclick="document.getElementById('file-input').click()"
+           ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <span class="drop-ico">📂</span>
+        <div class="drop-txt" id="drop-txt">Glisser le fichier ici ou cliquer pour parcourir</div>
+        <div class="drop-sub">CSV (virgule, point-virgule) ou Excel (.xlsx, .xls)</div>
+      </div>
+      <input type="file" id="file-input" accept=".csv,.xlsx,.xls" onchange="onFileSelect(event)">
+
+      <div class="params-row">
+        <div class="param-group">
+          <label>Colonne Source SI (identifiant structure)</label>
+          <select id="col-source">
+            <option value="">— sélectionner après import —</option>
+          </select>
+        </div>
+        <div class="param-group">
+          <label>Colonne Année</label>
+          <select id="col-annee">
+            <option value="">— sélectionner après import —</option>
+          </select>
+        </div>
+        <div class="param-group">
+          <label>Colonne Valeur</label>
+          <select id="col-valeur">
+            <option value="">— sélectionner après import —</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 : Analyse & Mapping -->
+  <div class="card" id="card-mapping" style="display:none;">
+    <div class="card-hdr"><h2>③ Correspondances Source SI → Structures Grist</h2></div>
+    <div class="card-body">
+      <div id="status-bar"></div>
+      <div class="map-hdr">
+        <div>Source SI (fichier)</div><div></div><div>Structure Grist</div>
+      </div>
+      <div id="mapping-rows"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="reanalyser()">🔄 Ré-analyser</button>
+        <button class="btn btn-primary" id="btn-preview" onclick="genererPreview()" disabled>
+          👁 Voir le prévisualisation
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4 : Preview -->
+  <div class="card" id="card-preview" style="display:none;">
+    <div class="card-hdr"><h2>④ Prévisualisation des modifications</h2></div>
+    <div class="card-body">
+      <div class="summary" id="summary"></div>
+      <div class="tscroll">
+        <table>
+          <thead id="preview-head"></thead>
+          <tbody id="preview-body"></tbody>
+        </table>
+      </div>
+      <div id="prog-wrap">
+        <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+        <div class="prog-lbl" id="prog-lbl">Écriture en cours…</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="resetAll()">✕ Annuler</button>
+        <button class="btn btn-danger" id="btn-write" onclick="ecrireGrist()" disabled>
+          💾 Écrire dans Grist
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div class="card">
+    <div class="card-hdr"><h2>Journal</h2></div>
+    <div class="card-body" style="padding:10px 18px;">
+      <div id="log"><span class="log-info">Prêt.</span></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ─────────────────────────────────────────────────
+   ÉTAT GLOBAL
+───────────────────────────────────────────────── */
+var G = {
+  colIndicateur: 'ETPT_SU',
+  modeInformatique: false,   // colonne RH cible
+  rawRows:     [],             // lignes brutes du fichier
+  fileHeaders: [],             // colonnes du fichier
+  equivalence: [],             // {Source_SI, Structure} depuis Grist
+  tableRH:     [],             // lignes actuelles de la table RH depuis Grist
+  tableIT:     [],             // lignes actuelles de la table Informatique depuis Grist
+  tableStruct: [],             // structures Grist [{id, Nom}]
+  preview:     [],             // lignes à écrire [{action, structId, annee, valeur, nom}]
+  gristOk:     false,
+};
+
+/* ─────────────────────────────────────────────────
+   LOG
+───────────────────────────────────────────────── */
+function log(msg, cls) {
+  var el = document.getElementById('log');
+  var d  = document.createElement('div');
+  d.className = cls || 'log-info';
+  d.textContent = new Date().toLocaleTimeString('fr') + ' › ' + msg;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ─────────────────────────────────────────────────
+   GRIST INIT
+───────────────────────────────────────────────── */
+window.addEventListener('load', function() {
+  // Afficher panneau ETPT car ETPT_SU est sélectionné par défaut
+  document.getElementById('etpt-mois-wrap').style.display = '';
+  // Pré-remplir mois écoulés = mois courant - 1 (avril → 3)
+  // getMonth() = 0 en janvier, 3 en avril → mois complets écoulés = getMonth()
+  var moisEcoules = new Date().getMonth(); // jan=0→0 mois, avr=3→3 mois complets
+  document.getElementById('etpt-mois').value = Math.max(moisEcoules, 1);
+
+  if (typeof grist === 'undefined') {
+    setGristStatus('warn', 'Grist non détecté — mode test local');
+    log('Mode local : les données Grist ne sont pas disponibles', 'log-warn');
+    return;
+  }
+  try {
+    grist.ready({ requiredAccess: 'full' });
+    log('Connexion à Grist…', 'log-info');
+  } catch(e) { log('grist.ready() erreur : ' + e.message, 'log-err'); }
+
+  // Polling docApi
+  var tries = 0;
+  var poll = setInterval(function() {
+    tries++;
+    if (tries > 40) { clearInterval(poll); setGristStatus('err', 'docApi indisponible après 20s'); return; }
+    if (typeof grist.docApi !== 'undefined') {
+      clearInterval(poll);
+      G.gristOk = true;
+      setGristStatus('ok', 'Connecté — chargement des tables…');
+      chargerTablesGrist();
+    }
+  }, 500);
+});
+
+function setGristStatus(cls, txt) {
+  document.getElementById('grist-dot').className = 'dot ' + cls;
+  document.getElementById('grist-txt').textContent = txt;
+}
+
+async function chargerTablesGrist() {
+  try {
+    // Structures
+    var rawS = await grist.docApi.fetchTable('Structures');
+    G.tableStruct = toObjs(rawS);
+    log('Structures : ' + G.tableStruct.length + ' lignes', 'log-ok');
+
+    // Equivalence
+    var rawE = await grist.docApi.fetchTable('Equivalence');
+    G.equivalence = toObjs(rawE);
+    log('Equivalence : ' + G.equivalence.length + ' correspondances', 'log-ok');
+
+    // Table RH existante
+    var rawRH = await grist.docApi.fetchTable('RH');
+    G.tableRH = toObjs(rawRH);
+    log('RH existant : ' + G.tableRH.length + ' lignes', 'log-ok');
+
+    // Table Informatique existante
+    try {
+      var rawIT = await grist.docApi.fetchTable('Informatique');
+      G.tableIT = toObjs(rawIT);
+      log('Informatique existant : ' + G.tableIT.length + ' lignes', 'log-ok');
+    } catch(e) { G.tableIT = []; log('Table Informatique non trouvée (sera créée)', 'log-warn'); }
+
+    setGristStatus('ok', 'Connecté — ' + G.tableStruct.length + ' structures, ' + G.equivalence.length + ' équivalences');
+  } catch(e) {
+    log('Erreur chargement tables : ' + (e.message || String(e)), 'log-err');
+    setGristStatus('err', 'Erreur : ' + (e.message || 'tables inaccessibles'));
+  }
+}
+
+/* ─────────────────────────────────────────────────
+   UTILITAIRES GRIST
+───────────────────────────────────────────────── */
+function toObjs(rec) {
+  var keys = Object.keys(rec);
+  if (!keys.length) return [];
+  return (rec.id || []).map(function(id, i) {
+    var obj = { id: id };
+    keys.forEach(function(k) { if (k !== 'id') obj[k] = derefVal(rec[k][i]); });
+    return obj;
+  });
+}
+function derefVal(v) {
+  if (v === null || v === undefined) return v;
+  if (Array.isArray(v) && v[0] === 'r') return v[1];
+  if (typeof v === 'object' && 'id' in v) return v.id;
+  return v;
+}
+function strVal(v) {
+  if (Array.isArray(v)) return v[1] || '';
+  return v == null ? '' : String(v);
+}
+function nVal(v) {
+  if (v == null || v === '') return null;
+  var s = String(v).replace(',', '.').replace(/\s/g,'');
+  var x = parseFloat(s);
+  return isNaN(x) ? null : x;
+}
+
+/* ─────────────────────────────────────────────────
+   SÉLECTION INDICATEUR
+───────────────────────────────────────────────── */
+function selectIndicateur(btn) {
+  document.querySelectorAll('.ind-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  G.colIndicateur = btn.dataset.col;
+  G.modeInformatique = (G.colIndicateur === '__INFORMATIQUE__');
+  log('Indicateur sélectionné : ' + (G.modeInformatique ? 'Informatique (multi-colonnes)' : G.colIndicateur), 'log-info');
+  var isEtpt = ['ETPT_SU','ETPT_AGCO','ETPTtotal'].indexOf(G.colIndicateur) !== -1;
+  document.getElementById('etpt-mois-wrap').style.display = isEtpt ? '' : 'none';
+  // Info mode Informatique
+  var infoIT = document.getElementById('info-mode-it');
+  if(infoIT) infoIT.style.display = G.modeInformatique ? '' : 'none';
+}
+function updateEtptMode() {
+  var mode = document.querySelector('input[name="etpt-mode"]:checked').value;
+  document.getElementById('etpt-mois-input').style.display = mode==='mois' ? 'flex' : 'none';
+}
+function getDiviseurEtpt(annee) {
+  var mode = document.querySelector('input[name="etpt-mode"]:checked');
+  if (!mode || mode.value === 'annee') return 12;
+  var mois = parseInt(document.getElementById('etpt-mois').value) || 3;
+  // Si l'année du fichier correspond à l'année en cours → utiliser le diviseur mois
+  var anneeCourante = new Date().getFullYear();
+  return (annee === anneeCourante) ? mois : 12;
+}
+
+/* Détection automatique depuis le nom de fichier */
+function detectIndicateur(filename) {
+  var f = filename.toLowerCase();
+  var map = {
+    'etpt_su':    'ETPT_SU',
+    'etpt_agco':  'ETPT_AGCO',
+    'masse':      'MasseSalariale',
+    'salaire':    'MasseSalariale',
+    'age':        'AgeMoyen',
+    'absentei':   'AbsenteismeJours',
+    'formation':  'JoursFormationParAgent',
+    'cible':      'EffectifsCibles',
+    'effectif':   'EffectifsCibles',
+  };
+  for (var key in map) {
+    if (f.indexOf(key) !== -1) return map[key];
+  }
+  return null;
+}
+
+/* ─────────────────────────────────────────────────
+   DRAG & DROP / FILE INPUT
+───────────────────────────────────────────────── */
+function onDragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('over'); }
+function onDragLeave()  { document.getElementById('drop-zone').classList.remove('over'); }
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('over');
+  var f = e.dataTransfer.files[0];
+  if (f) traiterFichier(f);
+}
+function onFileSelect(e) {
+  var f = e.target.files[0];
+  if (f) traiterFichier(f);
+}
+
+function traiterFichier(file) {
+  log('Fichier : ' + file.name + ' (' + Math.round(file.size/1024) + ' Ko)', 'log-info');
+
+  // Suggestion indicateur depuis le nom de fichier
+  var suggest = detectIndicateur(file.name);
+  if (suggest) {
+    G.colIndicateur = suggest;
+    document.querySelectorAll('.ind-btn').forEach(function(b){
+      b.classList.toggle('active', b.dataset.col === suggest);
+    });
+    log('Indicateur détecté : ' + suggest, 'log-ok');
+  }
+
+  var dz = document.getElementById('drop-zone');
+  dz.classList.add('has-file');
+  document.getElementById('drop-txt').textContent = '✅ ' + file.name;
+
+  var ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'xlsx' || ext === 'xls') {
+    lireExcel(file);
+  } else {
+    lireCSV(file);
+  }
+}
+
+function lireCSV(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var txt = e.target.result;
+    // Détection séparateur
+    var sep = txt.indexOf(';') !== -1 ? ';' : ',';
+    var lines = txt.split(/\r?\n/).filter(function(l){ return l.trim(); });
+    var headers = lines[0].split(sep).map(function(h){ return h.trim().replace(/^"|"$/g,''); });
+    var rows = lines.slice(1).map(function(l){
+      var vals = l.split(sep).map(function(v){ return v.trim().replace(/^"|"$/g,''); });
+      var obj = {};
+      headers.forEach(function(h,i){ obj[h] = vals[i] !== undefined ? vals[i] : ''; });
+      return obj;
+    }).filter(function(r){ return Object.values(r).some(function(v){ return v && v.trim(); }); });
+    log('CSV parsé : ' + rows.length + ' lignes, colonnes : ' + headers.join(', '), 'log-ok');
+    apresLecture(headers, rows);
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function lireExcel(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb = XLSX.read(e.target.result, { type:'binary', cellDates:true });
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      var headers = rows.length ? Object.keys(rows[0]) : [];
+      log('Excel parsé : ' + rows.length + ' lignes, colonnes : ' + headers.join(', '), 'log-ok');
+      apresLecture(headers, rows);
+    } catch(err) {
+      log('Erreur lecture Excel : ' + err.message, 'log-err');
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function apresLecture(headers, rows) {
+  G.fileHeaders = headers;
+  G.rawRows = rows;
+  remplirSelects(headers);
+  analyserMapping();
+}
+
+/* ─────────────────────────────────────────────────
+   SÉLECTEURS DE COLONNES
+───────────────────────────────────────────────── */
+function remplirSelects(headers) {
+  ['col-source','col-annee','col-valeur'].forEach(function(id){
+    var sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">— choisir —</option>';
+    headers.forEach(function(h){
+      var opt = document.createElement('option');
+      opt.value = h; opt.textContent = h;
+      sel.appendChild(opt);
+    });
+  });
+
+  // Heuristiques de pré-sélection
+  var h_lc = headers.map(function(h){ return h.toLowerCase(); });
+  function guess(keywords) {
+    for (var i=0; i<keywords.length; i++)
+      for (var j=0; j<h_lc.length; j++)
+        if (h_lc[j].indexOf(keywords[i]) !== -1) return headers[j];
+    return '';
+  }
+  document.getElementById('col-source').value  = guess(['source','si','code','libelle','structure','service']);
+  document.getElementById('col-annee').value   = guess(['annee','année','year','exercice']);
+  document.getElementById('col-valeur').value  = guess(['valeur','value','montant','etpt','masse','age','jours','effectif','nombre']);
+
+  // Écouter les changements pour re-analyser
+  ['col-source','col-annee','col-valeur'].forEach(function(id){
+    document.getElementById(id).onchange = analyserMapping;
+  });
+}
+
+/* ─────────────────────────────────────────────────
+   ANALYSE MAPPING
+───────────────────────────────────────────────── */
+function analyserMapping() {
+  var colSrc = document.getElementById('col-source').value;
+  var colAn  = document.getElementById('col-annee').value;
+  var colVal = document.getElementById('col-valeur').value;
+  if (!colSrc || !colAn || !colVal || !G.rawRows.length) return;
+
+  // Valeurs uniques de Source_SI dans le fichier
+  var srcSet = {};
+  G.rawRows.forEach(function(r){ srcSet[r[colSrc]] = true; });
+  var srcVals = Object.keys(srcSet).filter(Boolean);
+
+  // Construire le mapping via table Equivalence
+  var equivMap = {}; // Source_SI → nom structure Grist
+  G.equivalence.forEach(function(e){
+    var src = strVal(e.Source_SI || e.source_si || e['Source SI'] || '');
+    var dst = strVal(e.Structure  || e.structure  || '');
+    if (src && dst) equivMap[src] = dst;
+  });
+
+  // Résoudre nom structure → id Grist
+  var structByNom = {};
+  G.tableStruct.forEach(function(s){ structByNom[strVal(s.Nom || s.nom || '')] = s.id; });
+
+  var mappingDiv = document.getElementById('mapping-rows');
+  mappingDiv.innerHTML = '';
+  var allOk = true;
+
+  srcVals.forEach(function(src) {
+    var nomGrist = equivMap[src] || null;
+    var structId = nomGrist ? structByNom[nomGrist] : null;
+    var cls, label;
+    if (structId) {
+      cls = 'ok'; label = nomGrist + ' (id ' + structId + ')';
+    } else if (nomGrist) {
+      cls = 'warn'; label = '⚠ "' + nomGrist + '" non trouvé dans Structures'; allOk = false;
+    } else {
+      cls = 'err'; label = '✗ Aucune équivalence trouvée'; allOk = false;
+    }
+    var row = document.createElement('div');
+    row.className = 'map-row';
+    row.innerHTML = '<div class="map-src" title="' + src + '">' + src + '</div>'
+      + '<div class="map-arrow">→</div>'
+      + '<div class="map-dst ' + cls + '">' + label + '</div>';
+    mappingDiv.appendChild(row);
+  });
+
+  document.getElementById('card-mapping').style.display = '';
+  document.getElementById('btn-preview').disabled = !allOk || !G.gristOk;
+  if (!allOk) log(srcVals.length - Object.keys(equivMap).length + ' correspondances manquantes — vérifiez la table Equivalence', 'log-warn');
+  else log('Mapping OK — ' + srcVals.length + ' structures résolues', 'log-ok');
+}
+
+function reanalyser() { analyserMapping(); }
+
+/* ─────────────────────────────────────────────────
+   GÉNÉRATION DU PREVIEW
+───────────────────────────────────────────────── */
+function genererPreview() {
+  var colSrc = document.getElementById('col-source').value;
+  var colAn  = document.getElementById('col-annee').value;
+  var colVal = document.getElementById('col-valeur').value;
+
+  var equivMap = {};
+  G.equivalence.forEach(function(e){
+    var src = strVal(e.Source_SI || e.source_si || e['Source SI'] || '');
+    var dst = strVal(e.Structure  || e.structure  || '');
+    if (src && dst) equivMap[src] = dst;
+  });
+  var structByNom = {};
+  G.tableStruct.forEach(function(s){ structByNom[strVal(s.Nom || s.nom || '')] = s.id; });
+
+  // Index existant : RH ou Informatique selon le mode
+  var rhIndex = {};
+  var tableSrc = G.modeInformatique ? (G.tableIT||[]) : G.tableRH;
+  tableSrc.forEach(function(r){
+    var key = (r.Structure||r.structure||'') + '|' + (r.Annee||r.annee||'');
+    rhIndex[key] = r.id;
+  });
+
+  G.preview = [];
+  for(var i=0; i<G.rawRows.length; i++){
+    var r = G.rawRows[i];
+    var src    = r[colSrc];
+    var anneeR = Number(r[colAn]) || 0;
+
+    // ── Mode Informatique : 3 colonnes simultanées ──
+    if(G.modeInformatique){
+      var dep=nVal(r['DepensesBureautique']||r['Depenses']||r[colVal]||null);
+      var pcp=nVal(r['NbPCPortable']||r['PCPortable']||r['nb_portable']||null);
+      var pcb=nVal(r['NbPCBureau']||r['PCBureau']||r['nb_bureau']||null);
+      if(dep===null&&pcp===null&&pcb===null){
+        G.preview.push({action:'skip',src:src,annee:anneeR,valeur:null,raison:'valeurs manquantes'}); continue;
+      }
+      var ngIT=equivMap[src], sidIT=ngIT?structByNom[ngIT]:null;
+      if(!sidIT){G.preview.push({action:'err',src:src,annee:anneeR,valeur:null,raison:'structure non résolue'}); continue;}
+      var keyIT=sidIT+'|'+anneeR, exIT=rhIndex[keyIT];
+      G.preview.push({action:exIT?'upd':'ins',src:src,nom:ngIT,structId:sidIT,
+        annee:anneeR,valeur:{dep:dep,pcp:pcp,pcb:pcb},rhId:exIT||null,modeIT:true});
+      continue;
+    }
+
+    // ── Mode standard ──
+    var valeurBrute = nVal(r[colVal]);
+    var isEtptCol = ['ETPT_SU','ETPT_AGCO','ETPTtotal'].indexOf(G.colIndicateur) !== -1;
+    var valeur = (isEtptCol && valeurBrute !== null)
+      ? Math.round(valeurBrute / getDiviseurEtpt(anneeR))
+      : valeurBrute;
+
+    if (!src || !anneeR || valeur === null) {
+      G.preview.push({ action:'skip', src:src, annee:anneeR, valeur:valeur, raison:'valeur manquante' }); continue;
+    }
+    var nomGrist = equivMap[src];
+    var structId = nomGrist ? structByNom[nomGrist] : null;
+    if (!structId) {
+      G.preview.push({ action:'err', src:src, annee:anneeR, valeur:valeur, raison:'structure non résolue' }); continue;
+    }
+    var key  = structId + '|' + anneeR;
+    var rhId = rhIndex[key];
+    G.preview.push({
+      action:   rhId ? 'upd' : 'ins',
+      src:      src,
+      nom:      nomGrist,
+      structId: structId,
+      annee:    anneeR,
+      valeur:   valeur,
+      rhId:     rhId || null,
+    });
+  }
+
+  afficherPreview();
+}
+
+function afficherPreview() {
+  var ins  = G.preview.filter(function(r){ return r.action==='ins'; }).length;
+  var upd  = G.preview.filter(function(r){ return r.action==='upd'; }).length;
+  var skip = G.preview.filter(function(r){ return r.action==='skip'||r.action==='err'; }).length;
+
+  document.getElementById('summary').innerHTML =
+    '<div class="sum-card ins"><div class="sum-val">'+ins+'</div><div class="sum-lbl">Nouvelles lignes</div></div>'
+   +'<div class="sum-card upd"><div class="sum-val">'+upd+'</div><div class="sum-lbl">Mises à jour</div></div>'
+   +'<div class="sum-card err"><div class="sum-val">'+skip+'</div><div class="sum-lbl">Ignorées</div></div>'
+   +'<div class="sum-card"><div class="sum-val">'+(ins+upd+skip)+'</div><div class="sum-lbl">Total fichier</div></div>';
+
+  var head = document.getElementById('preview-head');
+  head.innerHTML = '<tr>'
+    +'<th>Action</th><th>Source SI</th><th>Structure Grist</th>'
+    +'<th class="tr">Année</th><th class="tr">'+G.colIndicateur+'</th><th>Note</th>'
+    +'</tr>';
+
+  var tbody = document.getElementById('preview-body');
+  tbody.innerHTML = '';
+  G.preview.slice(0, 200).forEach(function(r){  // limiter à 200 lignes pour l'affichage
+    var pillCls = {ins:'pill-ins',upd:'pill-upd',skip:'pill-skip',err:'pill-err'}[r.action]||'pill-skip';
+    var pillTxt = {ins:'CRÉER',upd:'MÀJOUR',skip:'IGNORER',err:'ERREUR'}[r.action]||'?';
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><span class="pill '+pillCls+'">'+pillTxt+'</span></td>'
+      +'<td>'+escH(r.src||'')+'</td>'
+      +'<td>'+escH(r.nom||'—')+'</td>'
+      +'<td class="tr">'+(r.annee||'')+'</td>'
+      +'<td class="tr">'+(r.modeIT&&r.valeur?'Dep:'+Math.round(r.valeur.dep||0)+' | PCP:'+Math.round(r.valeur.pcp||0)+' | PCB:'+Math.round(r.valeur.pcb||0):r.valeur!==null&&r.valeur!==undefined?r.valeur:'—')+'</td>'
+      +'<td style="font-size:10.5px;color:var(--gris3)">'+(r.raison||'')+'</td>';
+    tbody.appendChild(tr);
+  });
+  if (G.preview.length > 200) {
+    var tr2 = document.createElement('tr');
+    tr2.innerHTML = '<td colspan="6" style="text-align:center;color:var(--gris3);font-style:italic;">… '+(G.preview.length-200)+' lignes supplémentaires non affichées</td>';
+    tbody.appendChild(tr2);
+  }
+
+  document.getElementById('card-preview').style.display = '';
+  document.getElementById('btn-write').disabled = (ins+upd === 0) || !G.gristOk;
+
+  log('Preview : ' + ins + ' insertions, ' + upd + ' mises à jour, ' + skip + ' ignorées', 'log-info');
+}
+
+function escH(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ─────────────────────────────────────────────────
+   ÉCRITURE DANS GRIST
+───────────────────────────────────────────────── */
+async function ecrireGrist() {
+  var toWrite = G.preview.filter(function(r){ return r.action==='ins'||r.action==='upd'; });
+  if (!toWrite.length) return;
+
+  var btn = document.getElementById('btn-write');
+  btn.disabled = true;
+  document.getElementById('prog-wrap').style.display = '';
+  log('Début écriture : ' + toWrite.length + ' lignes…', 'log-info');
+
+  var BATCH = 20; // actions par appel
+  var ok = 0, err = 0;
+
+  for (var i=0; i<toWrite.length; i+=BATCH) {
+    var batch = toWrite.slice(i, i+BATCH);
+    var actions = batch.map(function(r){
+      var tableCible = r.modeIT ? 'Informatique' : 'RH';
+      var fields = { Annee: r.annee };
+      if(r.modeIT && r.valeur){
+        if(r.valeur.dep!==null) fields['DepensesBureautique']=r.valeur.dep;
+        if(r.valeur.pcp!==null) fields['NbPCPortable']=r.valeur.pcp;
+        if(r.valeur.pcb!==null) fields['NbPCBureau']=r.valeur.pcb;
+      } else {
+        fields[G.colIndicateur] = r.valeur;
+      }
+      if (r.action === 'ins') fields['Structure'] = r.structId;
+
+      if (r.action === 'upd') {
+        return ['UpdateRecord', tableCible, r.rhId, fields];
+      } else {
+        return ['AddRecord', tableCible, null, fields];
+      }
+    });
+
+    try {
+      await grist.docApi.applyUserActions(actions);
+      ok += batch.length;
+    } catch(e) {
+      log('Erreur batch ' + Math.floor(i/BATCH+1) + ' : ' + (e.message||String(e)), 'log-err');
+      err += batch.length;
+    }
+
+    var pct = Math.round((i+BATCH)/toWrite.length*100);
+    document.getElementById('prog-fill').style.width = Math.min(pct,100)+'%';
+    document.getElementById('prog-lbl').textContent = ok + ' / ' + toWrite.length + ' lignes écrites…';
+    await new Promise(function(res){ setTimeout(res, 50); });
+  }
+
+  document.getElementById('prog-lbl').textContent = '✅ Terminé : ' + ok + ' lignes écrites' + (err?' ('+err+' erreurs)':'');
+  log('Écriture terminée : ' + ok + ' OK, ' + err + ' erreurs', err?'log-err':'log-ok');
+
+  // Recharger les tables
+  try {
+    var rawRH = await grist.docApi.fetchTable('RH');
+    G.tableRH = toObjs(rawRH);
+    log('Table RH rechargée : ' + G.tableRH.length + ' lignes', 'log-ok');
+  } catch(e) {}
+  if(G.modeInformatique){
+    try {
+      var rawIT2 = await grist.docApi.fetchTable('Informatique');
+      G.tableIT = toObjs(rawIT2);
+      log('Table Informatique rechargée : ' + G.tableIT.length + ' lignes', 'log-ok');
+    } catch(e) {}
+  }
+
+  btn.textContent = '✅ Données enregistrées';
+}
+
+/* ─────────────────────────────────────────────────
+   RESET
+───────────────────────────────────────────────── */
+function resetAll() {
+  G.rawRows = []; G.fileHeaders = []; G.preview = [];
+  document.getElementById('drop-zone').classList.remove('has-file');
+  document.getElementById('drop-txt').textContent = 'Glisser le fichier ici ou cliquer pour parcourir';
+  document.getElementById('file-input').value = '';
+  document.getElementById('card-mapping').style.display = 'none';
+  document.getElementById('card-preview').style.display = 'none';
+  document.getElementById('prog-wrap').style.display = 'none';
+  document.getElementById('prog-fill').style.width = '0%';
+  document.getElementById('btn-write').textContent = '💾 Écrire dans Grist';
+  document.getElementById('btn-write').disabled = true;
+  ['col-source','col-annee','col-valeur'].forEach(function(id){
+    var sel=document.getElementById(id);
+    sel.innerHTML='<option value="">— sélectionner après import —</option>';
+  });
+  log('Réinitialisé.', 'log-info');
+}
+</script>
+</body>
+</html>

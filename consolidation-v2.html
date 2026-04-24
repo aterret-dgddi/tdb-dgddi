@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><!-- upd-1776768626 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consolidation Globale — Indicateurs de gestion</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Cabin:wght@400;500;600;700&display=swap');
+
+:root{
+  --rep:#002F6C; --rep2:#1351A8; --rep-pale:#E6ECF8;
+  --rouge:#B52020; --vert:#1A6B3C; --orange:#C05A00; --jaune:#8A6800;
+  --gris1:#1E2D3D; --gris2:#4A5A6A; --gris3:#8A9BAA; --gris4:#EEF2F7;
+  --blanc:#FFFFFF; --bord:#CDD6E4;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Cabin',sans-serif;background:#F2F5FA;color:var(--gris1);font-size:13px;}
+
+/* ── TOOLBAR ── */
+#toolbar{
+  position:sticky;top:0;z-index:200;
+  background:var(--rep);padding:9px 18px;
+  display:flex;align-items:center;gap:10px;
+  box-shadow:0 2px 12px rgba(0,20,70,.4);
+}
+#toolbar h1{font-family:'Libre Baskerville',serif;font-size:14px;font-weight:700;color:#fff;flex:1;}
+.tbtn{
+  display:flex;align-items:center;gap:5px;
+  background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.28);
+  color:#fff;padding:5px 12px;border-radius:4px;
+  font-family:'Cabin',sans-serif;font-size:11.5px;font-weight:600;
+  cursor:pointer;transition:background .18s;white-space:nowrap;
+}
+.tbtn:hover{background:rgba(255,255,255,.26);}
+.tbtn.primary{background:#0057B8;border-color:#0046A0;}
+
+/* ── ONGLETS ── */
+#tabs{
+  background:#fff;border-bottom:3px solid var(--rep);
+  display:flex;overflow-x:auto;
+}
+.tab{
+  padding:10px 18px;cursor:pointer;font-size:12.5px;font-weight:600;
+  border-bottom:3px solid transparent;margin-bottom:-3px;
+  white-space:nowrap;color:var(--gris2);transition:all .18s;
+}
+.tab.active{border-bottom-color:var(--rep);color:var(--rep);}
+.tab:hover:not(.active){background:var(--gris4);}
+
+/* ── CONTENU ── */
+#content{max-width:1200px;margin:18px auto;padding:0 16px 50px;}
+
+/* ── KPI GLOBAUX ── */
+.kpi-global{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:12px;margin-bottom:20px;
+}
+.kg-card{
+  background:#fff;border:1px solid var(--bord);border-radius:8px;
+  padding:14px 16px;border-top:4px solid var(--rep2);text-align:center;
+  box-shadow:0 2px 6px rgba(0,20,80,.08);
+}
+.kg-card.rouge{border-top-color:var(--rouge);}
+.kg-card.vert{border-top-color:var(--vert);}
+.kg-card.orange{border-top-color:var(--orange);}
+.kg-val{font-size:24px;font-weight:700;color:var(--rep);line-height:1;margin-bottom:4px;}
+.kg-val.rouge{color:var(--rouge);}
+.kg-val.vert{color:var(--vert);}
+.kg-val.orange{color:var(--orange);}
+.kg-lbl{font-size:10.5px;color:var(--gris2);line-height:1.3;}
+
+/* ── TABLE ── */
+.twrap{background:#fff;border:1px solid var(--bord);border-radius:8px;overflow:hidden;margin-bottom:18px;box-shadow:0 2px 6px rgba(0,20,80,.07);}
+.twrap-title{
+  background:var(--rep);color:#fff;
+  padding:9px 16px;font-size:12.5px;font-weight:700;
+  display:flex;align-items:center;gap:7px;
+}
+.tscroll{overflow-x:auto;}
+.ct{width:100%;border-collapse:collapse;font-size:11.5px;}
+.ct th{
+  background:var(--rep-pale);color:var(--rep);
+  padding:7px 10px;text-align:left;font-weight:700;font-size:11px;
+  border-bottom:2px solid var(--bord);white-space:nowrap;
+  position:sticky;top:0;
+}
+.ct td{padding:7px 10px;border-bottom:1px solid var(--bord);white-space:nowrap;vertical-align:middle;}
+.ct tr.r-SIEGE{background:#F5F0FF;}
+.ct tr.r-DI{background:#EEF5FF;}
+.ct tr.r-DR td:first-child{padding-left:26px;}
+.ct tr.r-DR{background:#F8FBFF;}
+.ct tr.r-SCN{background:#F0FFF5;}
+.ct tr:hover td{background:#E2EEFF!important;}
+.ct tfoot tr td{background:var(--rep-pale)!important;font-weight:700;border-top:2px solid var(--bord);}
+.tr{text-align:right;font-variant-numeric:tabular-nums;}
+.tc{text-align:center;}
+.badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.5px;}
+.b-SIEGE{background:#3D1F7A;color:#fff;}
+.b-DI{background:var(--rep);color:#fff;}
+.b-DR{background:#1351A8;color:#fff;}
+.b-SCN{background:#1A6B3C;color:#fff;}
+
+/* ── MINI JAUGE ── */
+.mbar{height:6px;background:var(--gris4);border-radius:3px;overflow:hidden;margin-top:3px;min-width:50px;}
+.mfill{height:100%;border-radius:3px;}
+.mf-ok{background:var(--vert);}
+.mf-warn{background:var(--orange);}
+.mf-danger{background:var(--rouge);}
+
+/* ── COMPARATIF ── */
+.vs{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;}
+.vs-ok{background:#D4EDDA;color:var(--vert);}
+.vs-bad{background:#FADDDD;color:var(--rouge);}
+
+/* ── LOADING ── */
+#loading{display:flex;flex-direction:column;align-items:center;padding:60px;gap:12px;color:var(--gris2);}
+.spin{width:34px;height:34px;border:3px solid var(--bord);border-top-color:var(--rep);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+@media print{
+  #toolbar,#tabs,#pdf-overlay{display:none;}
+  body{background:#fff;}
+  #content{margin:0;padding:8px;max-width:100%;}
+  .kpi-global{grid-template-columns:repeat(4,1fr);}
+  @page{margin:10mm;size:A4 landscape;}
+}
+
+/* ── MODAL EXPORT PDF ── */
+#pdf-overlay{display:none;position:fixed;inset:0;background:rgba(0,20,60,.55);backdrop-filter:blur(3px);z-index:1000;align-items:center;justify-content:center;}
+#pdf-overlay.open{display:flex;}
+#pdf-modal{background:#fff;border-radius:12px;width:560px;max-width:95vw;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,20,70,.35);animation:modalIn .2s ease;}
+@keyframes modalIn{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
+.modal-header{background:var(--rep);color:#fff;padding:15px 20px;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;}
+.modal-header h2{font-size:14px;font-weight:700;font-family:'Libre Baskerville',serif;}
+.modal-close{background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.modal-close:hover{background:rgba(255,255,255,.3);}
+.modal-body{padding:18px 20px;}
+.modal-sec-title{font-size:10.5px;font-weight:700;color:var(--rep);letter-spacing:.7px;text-transform:uppercase;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid var(--rep-pale);}
+.modal-section{margin-bottom:18px;}
+/* Grille onglets */
+.tabs-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.tab-check{display:flex;align-items:center;gap:8px;border:1.5px solid var(--bord);border-radius:6px;padding:8px 11px;cursor:pointer;transition:all .15s;}
+.tab-check:hover{border-color:var(--rep2);background:var(--rep-pale);}
+.tab-check.checked{border-color:var(--rep);background:var(--rep-pale);}
+.tab-cb{margin-left:auto;width:16px;height:16px;border-radius:3px;border:2px solid var(--bord);background:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;flex-shrink:0;}
+.tab-check.checked .tab-cb{background:var(--rep);border-color:var(--rep);}
+.tab-ico{font-size:14px;}
+.tab-lbl{font-size:12px;font-weight:600;color:var(--gris1);}
+/* Options */
+.opt-row{display:flex;align-items:center;gap:10px;padding:8px 11px;border:1.5px solid var(--bord);border-radius:6px;cursor:pointer;transition:all .15s;margin-bottom:6px;}
+.opt-row:hover{border-color:var(--rep2);background:var(--rep-pale);}
+.opt-row.checked{border-color:var(--rep);background:var(--rep-pale);}
+.opt-toggle{width:30px;height:17px;background:var(--gris3);border-radius:9px;position:relative;transition:background .2s;flex-shrink:0;}
+.opt-toggle::after{content:'';position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 2px rgba(0,0,0,.2);}
+.opt-row.checked .opt-toggle{background:var(--rep);}
+.opt-row.checked .opt-toggle::after{transform:translateX(13px);}
+.opt-lbl{font-size:12px;font-weight:600;color:var(--gris1);flex:1;}
+.opt-desc{font-size:10.5px;color:var(--gris2);}
+/* Sélection tout */
+.sel-all-row{display:flex;justify-content:flex-end;gap:10px;margin-bottom:7px;}
+.sel-all-row a{font-size:11px;color:var(--rep2);cursor:pointer;text-decoration:underline;}
+/* Progression */
+#conso-prog{display:none;margin-top:10px;}
+.prog-bar-o{height:6px;background:var(--gris4);border-radius:3px;overflow:hidden;}
+.prog-bar-f{height:100%;background:var(--rep2);border-radius:3px;transition:width .3s;}
+.prog-msg-c{font-size:11px;color:var(--gris2);margin-top:4px;text-align:center;}
+/* Footer modale */
+.modal-footer{padding:12px 20px 18px;border-top:1px solid var(--bord);display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.btn-cancel{background:#fff;border:1.5px solid var(--bord);color:var(--gris2);padding:7px 16px;border-radius:5px;font-family:'Cabin',sans-serif;font-size:12px;font-weight:600;cursor:pointer;}
+.btn-cancel:hover{background:var(--gris4);}
+.btn-export{background:var(--rep);color:#fff;border:none;padding:8px 20px;border-radius:5px;font-family:'Cabin',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.btn-export:hover{background:var(--rep2);}
+.btn-export:disabled{opacity:.5;cursor:not-allowed;}
+</style>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+
+<div id="toolbar">
+  <h1>📊 Consolidation Globale — Tous services</h1>
+  <div style="display:flex;gap:7px;">
+    <button class="tbtn" onclick="window.print()">🖨️ Imprimer</button>
+    <button class="tbtn primary" onclick="openPdfModal()">📄 Export PDF…</button>
+  </div>
+</div>
+
+<!-- MODALE EXPORT PDF -->
+<div id="pdf-overlay" onclick="closePdfModalOutside(event)">
+<div id="pdf-modal">
+  <div class="modal-header">
+    <h2>📄 Exporter la consolidation en PDF</h2>
+    <button class="modal-close" onclick="closePdfModal()">✕</button>
+  </div>
+  <div class="modal-body">
+
+    <div class="modal-section">
+      <div class="modal-sec-title">Onglets à inclure</div>
+      <div class="sel-all-row">
+        <a onclick="selAllTabs(true)">Tout sélectionner</a>
+        <a onclick="selAllTabs(false)">Tout désélectionner</a>
+      </div>
+      <div class="tabs-grid">
+        <div class="tab-check checked" data-tab="budget" onclick="toggleTabCheck(this)">
+          <span class="tab-ico">💶</span><span class="tab-lbl">Budget</span><div class="tab-cb">✓</div>
+        </div>
+        <div class="tab-check checked" data-tab="rh" onclick="toggleTabCheck(this)">
+          <span class="tab-ico">👥</span><span class="tab-lbl">RH</span><div class="tab-cb">✓</div>
+        </div>
+        <div class="tab-check checked" data-tab="contentieux" onclick="toggleTabCheck(this)">
+          <span class="tab-ico">⚖️</span><span class="tab-lbl">Contentieux</span><div class="tab-cb">✓</div>
+        </div>
+        <div class="tab-check checked" data-tab="immobilier" onclick="toggleTabCheck(this)">
+          <span class="tab-ico">🏛️</span><span class="tab-lbl">Immobilier</span><div class="tab-cb">✓</div>
+        </div>
+        <div class="tab-check checked" data-tab="vehicules" onclick="toggleTabCheck(this)">
+          <span class="tab-ico">🚗</span><span class="tab-lbl">Véhicules</span><div class="tab-cb">✓</div>
+        </div>
+        <div class="tab-check checked" data-tab="fraisMission" onclick="toggleTabCheck(this)">
+          <span class="tab-ico">✈️</span><span class="tab-lbl">Frais de mission</span><div class="tab-cb">✓</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-sec-title">Options</div>
+      <div class="opt-row checked" id="opt-kpi" onclick="toggleOpt(this)">
+        <div class="opt-toggle"></div>
+        <div><div class="opt-lbl">Indicateurs synthèse</div><div class="opt-desc">Inclure les KPI globaux en haut de chaque onglet</div></div>
+      </div>
+      <div class="opt-row checked" id="opt-tableau" onclick="toggleOpt(this)">
+        <div class="opt-toggle"></div>
+        <div><div class="opt-lbl">Tableaux détaillés</div><div class="opt-desc">Inclure le tableau complet par structure</div></div>
+      </div>
+      <div class="opt-row" id="opt-paysage" onclick="toggleOpt(this)">
+        <div class="opt-toggle"></div>
+        <div><div class="opt-lbl">Format paysage</div><div class="opt-desc">A4 paysage (recommandé pour les tableaux larges)</div></div>
+      </div>
+      <div class="opt-row" id="opt-date" onclick="toggleOpt(this)">
+        <div class="opt-toggle"></div>
+        <div><div class="opt-lbl">Pied de page avec date</div><div class="opt-desc">Ajouter la date d'export sur chaque page</div></div>
+      </div>
+    </div>
+
+    <div id="conso-prog">
+      <div class="prog-bar-o"><div class="prog-bar-f" id="conso-prog-fill" style="width:0%"></div></div>
+      <div class="prog-msg-c" id="conso-prog-msg">Préparation…</div>
+    </div>
+
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closePdfModal()">Annuler</button>
+    <button class="btn-export" id="btn-conso-export" onclick="doExportPDF()">
+      <span>📥</span><span id="btn-conso-lbl">Générer le PDF</span>
+    </button>
+  </div>
+</div>
+</div>
+
+<div id="tabs">
+  <div class="tab active"  onclick="show('budget',this)">💶 Budget</div>
+  <div class="tab"         onclick="show('rh',this)">👥 RH</div>
+  <div class="tab"         onclick="show('contentieux',this)">⚖️ Contentieux</div>
+  <div class="tab"         onclick="show('immobilier',this)">🏛️ Immobilier</div>
+  <div class="tab"         onclick="show('vehicules',this)">🚗 Véhicules</div>
+  <div class="tab"         onclick="show('fraisMission',this)">✈️ Frais de mission</div>
+  <div class="tab"         onclick="show('informatique',this)">💻 Informatique</div>
+</div>
+
+<div id="year-bar-conso" style="background:#fff;border-bottom:1px solid var(--bord);padding:7px 18px;display:flex;align-items:center;gap:8px;display:none;">
+  <span style="font-size:10.5px;color:var(--gris2);font-weight:700;flex-shrink:0;">Année :</span>
+  <div id="year-btns-conso" style="display:flex;gap:6px;"></div>
+</div>
+<div id="content">
+  <div id="loading"><div class="spin"></div><span>Chargement…</span></div>
+  <div id="tab-content" style="display:none;"></div>
+</div>
+
+<script>
+/* ── Fonctions utilitaires — définies en premier ── */
+function n(v){ var x=parseFloat(v); return isNaN(x)?0:x; }
+function fmtAge(v){
+  var x=parseFloat(String(v).replace(',','.'));
+  if(isNaN(x)||x<=0) return '—';
+  var ans=Math.floor(x); var mois=Math.round((x-ans)*12);
+  if(mois>=12){ans++;mois=0;}
+  return mois>0?ans+' ans '+mois+' mois':ans+' ans';
+}
+/* Extrait un nombre depuis une valeur Moyennes qui peut être "26,9" ou "25,9 %" ou 71 */
+function nPct(v){ if(v==null) return 0; var s=String(v).replace(',','.').replace(/[^0-9.]/g,''); var x=parseFloat(s); return isNaN(x)?0:x; }
+
+function strVal(v){ if(Array.isArray(v)) return v[1]||''; return v==null?'':String(v); }
+
+
+/* ════════ CONFIG ════════ */
+const CFG={
+  tables:{structures:'Structures',contentieux:'Contentieux',budget:'Budget',rh:'RH',immobilier:'Immobilier',vehicules:'Vehicules',fraisMission:'FraisMission',moyennes:'Moyennes',informatique:'Informatique'},
+  c:{
+    S:{id:'id',nom:'Nom',type:'Type',parent:'Parent',region:'Region'},
+    CT:{struct:'Structure',nb:'NombreTotal',cannabis:'KgCannabis',cocaine:'KgCocaine',tabac:'KgTabac'},
+    B:{struct:'Structure',typeb:'TypeBudget',annee:'Annee',ae_n:'AE_Notifiees',ae_d:'AE_MisesADispo',ae_c:'AE_Consommees',cp_n:'CP_Notifiees',cp_d:'CP_MisesADispo',cp_c:'CP_Consommees'},
+    RH:{struct:'Structure',etpt_su:'ETPT_SU',etpt_agco:'ETPT_AGCO',etpt_tot:'ETPTtotal',cib:'EffectifsCibles',ms:'MasseSalariale',jf:'JoursFormationParAgent',abs:'AbsenteismeJours',age:'AgeMoyen',annee:'Annee'},
+    IM:{struct:'Structure',site:'NomSite',occ:'TypeOccupation',adr:'Adresse',m2:'M2Occupes',cout:'CoutGestionM2',loyer:'LoyerAnnuel'},
+    VH:{struct:'Structure',nb:'NbVehicules',vet_s:'TauxVetusteStructure',vet_n:'TauxVetusteMoyenNational',vpa_s:'VehiculesParAgent',vpa_n:'VehiculesMoyenNational'},
+    FM:{struct:'Structure',type:'TypeMission',annee:'Annee',mt:'MontantTotal',tr:'PartTransport',hb:'PartHebergement',rp:'PartRepas'},
+    IT:{struct:'Structure',annee:'Annee',dep:'DepensesBureautique',pcp:'NbPCPortable',pcb:'NbPCBureau'},
+    MO:{vet_n:'TauxVetusteMoyenNational',vpa_n:'VehiculesMoyenNational',age_n:'AgeMoyenNational',abs_n:'AbsenteismeMoyenNational',jf_n:'JoursFormationMoyenNational',cae_n:'ConsoAEMoyenNational',ccp_n:'ConsoCPMoyenNational',annee:'Annee',info_dep_di:'DepenseMoyenneDI',info_dep_scn:'DepenseMoyenneSCN',info_dep_om:'DepenseMoyenneOM',info_tx_di:'TauxEquipMoyenDI',info_tx_scn:'TauxEquipMoyenSCN',info_tx_om:'TauxEquipMoyenOM'}
+  }
+};
+let D={}, curTab='budget', _anneeC=2026;
+
+/* ════════ GRIST — INITIALISATION MULTI-MÉTHODES ════════ */
+
+let _gristReady = false;
+let _loadTimer  = null;
+
+function initGrist() {
+  if (typeof grist === 'undefined') {
+    setTimeout(loadDemo, 500); return;
+  }
+
+  _loadTimer = setTimeout(() => {
+    if (_gristReady) return;
+    const el = document.querySelector('#loading span');
+    if (el) {
+      el.style.color = '#B52020';
+      el.style.whiteSpace = 'pre-line';
+      el.textContent = '⏱ Grist ne répond pas.\nVérifiez : Niveau d\'accès = "Accès complet au document"\npuis rechargez (F5)';
+    }
+    let btn = document.getElementById('btn-conso-demo');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'btn-conso-demo';
+      btn.textContent = 'Mode démonstration';
+      btn.style.cssText = 'margin-top:12px;padding:6px 16px;background:#EEF2F7;border:1px solid #CDD6E4;border-radius:5px;cursor:pointer;font-size:12px;';
+      btn.onclick = loadDemo;
+      document.getElementById('loading').appendChild(btn);
+    }
+  }, 15000);
+
+  try { grist.ready({ requiredAccess: 'full' }); } catch(e) {}
+
+  const tryFetch = () => { if (!_gristReady) fetchAllTables(); };
+
+  if (typeof grist.onOptions === 'function') grist.onOptions(tryFetch);
+  if (typeof grist.onRecord  === 'function') grist.onRecord(tryFetch);
+  setTimeout(() => { if (!_gristReady && typeof grist.docApi !== 'undefined') fetchAllTables(); }, 1000);
+
+  let n = 0;
+  const poll = setInterval(() => {
+    if (_gristReady || ++n > 20) { clearInterval(poll); return; }
+    if (typeof grist.docApi?.fetchTable === 'function') { clearInterval(poll); fetchAllTables(); }
+  }, 500);
+}
+
+async function fetchAllTables() {
+  if (_gristReady) return;
+  _gristReady = true;
+  clearTimeout(_loadTimer);
+
+  const el = document.querySelector('#loading span');
+  if (el) el.textContent = 'Chargement des tables…';
+
+  for (const [k, t] of Object.entries(CFG.tables)) {
+    try {
+      if (el) el.textContent = 'Chargement : ' + t + '…';
+      D[k] = toObjs(await grist.docApi.fetchTable(t));
+      console.log('[Grist]', t, ':', D[k].length, 'lignes');
+    } catch(e) {
+      console.warn('[Grist] Table', t, 'introuvable:', e);
+      D[k] = [];
+    }
+  }
+  init();
+}
+
+function derefId(v) {
+  if (v === null || v === undefined)     return v;
+  if (Array.isArray(v) && v[0] === 'r') return v[1];
+  if (typeof v === 'object' && 'id' in v) return v.id;
+  return v;
+}
+
+function toObjs(rec) {
+  const ks = Object.keys(rec); if (!ks.length) return [];
+  return (rec.id||[]).map((id,i) => {
+    const o = {id};
+    ks.forEach(k => { if (k !== 'id') o[k] = derefId(rec[k][i]); });
+    return o;
+  });
+}
+
+/* ════════ DEMO ════════ */
+function loadDemo(){
+  D={
+    structures:[
+      {id:1,Nom:'Direction Générale — Siège',Type:'SIEGE',Parent:null,Region:'Île-de-France'},
+      {id:2,Nom:'Direction Interrégionale Nord',Type:'DI',Parent:null,Region:'Hauts-de-France'},
+      {id:3,Nom:'Direction Régionale Nord-Est',Type:'DR',Parent:2,Region:'Grand Est'},
+      {id:4,Nom:'Direction Régionale Nord-Ouest',Type:'DR',Parent:2,Region:'Normandie'},
+      {id:5,Nom:'Direction Interrégionale Sud',Type:'DI',Parent:null,Region:'Occitanie'},
+      {id:6,Nom:'Direction Régionale Sud-Est',Type:'DR',Parent:5,Region:'PACA'},
+      {id:7,Nom:'Service à Compétence Nationale A',Type:'SCN',Parent:null,Region:'Île-de-France'},
+      {id:8,Nom:'Service à Compétence Nationale B',Type:'SCN',Parent:null,Region:'Rhône-Alpes'},
+    ],
+    contentieux:[
+      {id:1,Structure:1,NombreTotal:12,KgCannabis:450.5,KgCocaine:120.0,KgTabac:8500.0},
+      {id:2,Structure:2,NombreTotal:8, KgCannabis:210.0,KgCocaine:45.5, KgTabac:3200.0},
+      {id:3,Structure:3,NombreTotal:3, KgCannabis:80.0, KgCocaine:12.0, KgTabac:1100.0},
+      {id:4,Structure:4,NombreTotal:5, KgCannabis:150.0,KgCocaine:30.0, KgTabac:2400.0},
+      {id:5,Structure:5,NombreTotal:6, KgCannabis:320.0,KgCocaine:88.0, KgTabac:5600.0},
+      {id:6,Structure:6,NombreTotal:4, KgCannabis:95.0, KgCocaine:21.0, KgTabac:1800.0},
+      {id:7,Structure:7,NombreTotal:2, KgCannabis:40.0, KgCocaine:8.5,  KgTabac:600.0},
+      {id:8,Structure:8,NombreTotal:1, KgCannabis:15.0, KgCocaine:3.0,  KgTabac:250.0},
+    ],
+    budget:[
+      {id:1, Structure:1,TypeBudget:'Fonctionnement',Annee:2025,AE_Notifiees:2500000,AE_MisesADispo:2500000,AE_Consommees:1820000,CP_Notifiees:2500000,CP_MisesADispo:2500000,CP_Consommees:1750000},
+      {id:2, Structure:1,TypeBudget:'Investissement', Annee:2025,AE_Notifiees:800000, AE_MisesADispo:800000, AE_Consommees:420000, CP_Notifiees:800000, CP_MisesADispo:800000, CP_Consommees:390000},
+      {id:3, Structure:1,TypeBudget:'Intervention',   Annee:2025,AE_Notifiees:1200000,AE_MisesADispo:1200000,AE_Consommees:980000, CP_Notifiees:1200000,CP_MisesADispo:1200000,CP_Consommees:960000},
+      {id:4, Structure:2,TypeBudget:'Fonctionnement',Annee:2025,AE_Notifiees:1800000,AE_MisesADispo:1750000,AE_Consommees:1540000,CP_Notifiees:1800000,CP_MisesADispo:1750000,CP_Consommees:1480000},
+      {id:5, Structure:2,TypeBudget:'Investissement', Annee:2025,AE_Notifiees:500000, AE_MisesADispo:500000, AE_Consommees:380000, CP_Notifiees:500000, CP_MisesADispo:500000, CP_Consommees:350000},
+      {id:6, Structure:2,TypeBudget:'Intervention',   Annee:2025,AE_Notifiees:600000, AE_MisesADispo:600000, AE_Consommees:410000, CP_Notifiees:600000, CP_MisesADispo:600000, CP_Consommees:400000},
+      {id:7, Structure:5,TypeBudget:'Fonctionnement',Annee:2025,AE_Notifiees:1600000,AE_MisesADispo:1600000,AE_Consommees:980000, CP_Notifiees:1600000,CP_MisesADispo:1600000,CP_Consommees:950000},
+      {id:8, Structure:5,TypeBudget:'Investissement', Annee:2025,AE_Notifiees:600000, AE_MisesADispo:580000, AE_Consommees:210000, CP_Notifiees:600000, CP_MisesADispo:580000, CP_Consommees:200000},
+      {id:9, Structure:7,TypeBudget:'Fonctionnement',Annee:2025,AE_Notifiees:1100000,AE_MisesADispo:1100000,AE_Consommees:890000, CP_Notifiees:1100000,CP_MisesADispo:1100000,CP_Consommees:870000},
+      {id:10,Structure:7,TypeBudget:'Investissement', Annee:2025,AE_Notifiees:300000, AE_MisesADispo:300000, AE_Consommees:278000, CP_Notifiees:300000, CP_MisesADispo:300000, CP_Consommees:270000},
+      {id:11,Structure:8,TypeBudget:'Fonctionnement',Annee:2025,AE_Notifiees:950000, AE_MisesADispo:920000, AE_Consommees:410000, CP_Notifiees:950000, CP_MisesADispo:920000, CP_Consommees:400000},
+    ],
+    rh:[
+      {id:1,Structure:1,ETPT_SU:80,ETPT_AGCO:65,ETPTtotal:145,EffectifsCibles:150,MasseSalariale:9200000,JoursFormationParAgent:3.2,AbsenteismeJours:820,AgeMoyen:44.1,Annee:2026},
+      {id:2,Structure:2,ETPT_SU:62,ETPT_AGCO:50,ETPTtotal:112,EffectifsCibles:120,MasseSalariale:7100000,JoursFormationParAgent:2.8,AbsenteismeJours:640,AgeMoyen:46.3,Annee:2026},
+      {id:3,Structure:3,ETPT_SU:30,ETPT_AGCO:24,ETPTtotal:54, EffectifsCibles:58, MasseSalariale:3200000,JoursFormationParAgent:3.5,AbsenteismeJours:310,AgeMoyen:43.7,Annee:2026},
+      {id:4,Structure:4,ETPT_SU:26,ETPT_AGCO:22,ETPTtotal:48, EffectifsCibles:52, MasseSalariale:2900000,JoursFormationParAgent:2.1,AbsenteismeJours:295,AgeMoyen:47.2,Annee:2026},
+      {id:5,Structure:5,ETPT_SU:54,ETPT_AGCO:44,ETPTtotal:98, EffectifsCibles:105,MasseSalariale:6200000,JoursFormationParAgent:4.1,AbsenteismeJours:520,AgeMoyen:42.9,Annee:2026},
+      {id:6,Structure:6,ETPT_SU:24,ETPT_AGCO:20,ETPTtotal:44, EffectifsCibles:45, MasseSalariale:2700000,JoursFormationParAgent:3.8,AbsenteismeJours:198,AgeMoyen:41.5,Annee:2026},
+      {id:7,Structure:7,ETPT_SU:37,ETPT_AGCO:30,ETPTtotal:67, EffectifsCibles:70, MasseSalariale:4500000,JoursFormationParAgent:5.2,AbsenteismeJours:380,AgeMoyen:39.8,Annee:2026},
+      {id:8,Structure:8,ETPT_SU:28,ETPT_AGCO:23,ETPTtotal:51, EffectifsCibles:55, MasseSalariale:3400000,JoursFormationParAgent:4.8,AbsenteismeJours:290,AgeMoyen:40.3,Annee:2026},
+    ],
+    immobilier:[
+      {id:1,Structure:1,NomSite:'Tour Centrale — Siège',         TypeOccupation:'Domaine public',Adresse:'33 av. du Maine, Paris 15e',        M2Occupes:4200,CoutGestionM2:380,LoyerAnnuel:null},
+      {id:2,Structure:2,NomSite:'Cité administrative de Lille',   TypeOccupation:'Domaine public',Adresse:'143 bis rue Solférino, Lille',      M2Occupes:2800,CoutGestionM2:210,LoyerAnnuel:null},
+      {id:3,Structure:2,NomSite:'Antenne Amiens',                 TypeOccupation:'Bail privé',    Adresse:'12 rue de Noyon, Amiens',           M2Occupes:450, CoutGestionM2:195,LoyerAnnuel:68000},
+      {id:4,Structure:5,NomSite:'Centre administratif Toulouse',  TypeOccupation:'Domaine public',Adresse:'1 pl. Alphonse-Jourdain, Toulouse', M2Occupes:2400,CoutGestionM2:220,LoyerAnnuel:null},
+      {id:5,Structure:5,NomSite:'Antenne Bordeaux',               TypeOccupation:'Bail privé',    Adresse:'8 cours du Médoc, Bordeaux',        M2Occupes:620, CoutGestionM2:210,LoyerAnnuel:98000},
+      {id:6,Structure:7,NomSite:'Bâtiment SCN-A',                TypeOccupation:'Domaine public',Adresse:'7 rue de Varenne, Paris 7e',         M2Occupes:1800,CoutGestionM2:420,LoyerAnnuel:null},
+      {id:7,Structure:8,NomSite:'Centre SCN-B Lyon',              TypeOccupation:'Bail privé',    Adresse:'20 rue de la République, Lyon',     M2Occupes:1100,CoutGestionM2:260,LoyerAnnuel:185000},
+    ],
+    vehicules:[
+      {id:1,Structure:1,NbVehicules:24,TauxVetusteStructure:28,TauxVetusteMoyenNational:32,VehiculesParAgent:0.17,VehiculesMoyenNational:0.28},
+      {id:2,Structure:2,NbVehicules:38,TauxVetusteStructure:35,TauxVetusteMoyenNational:32,VehiculesParAgent:0.34,VehiculesMoyenNational:0.28},
+      {id:3,Structure:3,NbVehicules:18,TauxVetusteStructure:42,TauxVetusteMoyenNational:32,VehiculesParAgent:0.33,VehiculesMoyenNational:0.28},
+      {id:4,Structure:4,NbVehicules:15,TauxVetusteStructure:30,TauxVetusteMoyenNational:32,VehiculesParAgent:0.31,VehiculesMoyenNational:0.28},
+      {id:5,Structure:5,NbVehicules:32,TauxVetusteStructure:22,TauxVetusteMoyenNational:32,VehiculesParAgent:0.33,VehiculesMoyenNational:0.28},
+      {id:6,Structure:6,NbVehicules:12,TauxVetusteStructure:18,TauxVetusteMoyenNational:32,VehiculesParAgent:0.27,VehiculesMoyenNational:0.28},
+      {id:7,Structure:7,NbVehicules:8, TauxVetusteStructure:15,TauxVetusteMoyenNational:32,VehiculesParAgent:0.12,VehiculesMoyenNational:0.28},
+      {id:8,Structure:8,NbVehicules:10,TauxVetusteStructure:25,TauxVetusteMoyenNational:32,VehiculesParAgent:0.20,VehiculesMoyenNational:0.28},
+    ],
+    fraisMission:[
+      {id:1, Structure:1,TypeMission:'Formation',      Annee:2022,MontantTotal:48000, PartTransport:60,PartHebergement:25,PartRepas:15},
+      {id:2, Structure:1,TypeMission:'Formation',      Annee:2023,MontantTotal:52000, PartTransport:58,PartHebergement:27,PartRepas:15},
+      {id:3, Structure:1,TypeMission:'Formation',      Annee:2024,MontantTotal:49000, PartTransport:59,PartHebergement:26,PartRepas:15},
+      {id:4, Structure:1,TypeMission:'Formation',      Annee:2025,MontantTotal:15000, PartTransport:57,PartHebergement:28,PartRepas:15},
+      {id:5, Structure:1,TypeMission:'AutresMissions', Annee:2022,MontantTotal:137000,PartTransport:53,PartHebergement:32,PartRepas:15},
+      {id:6, Structure:1,TypeMission:'AutresMissions', Annee:2023,MontantTotal:158000,PartTransport:51,PartHebergement:33,PartRepas:16},
+      {id:7, Structure:1,TypeMission:'AutresMissions', Annee:2024,MontantTotal:149000,PartTransport:52,PartHebergement:32,PartRepas:16},
+      {id:8, Structure:1,TypeMission:'AutresMissions', Annee:2025,MontantTotal:47000, PartTransport:50,PartHebergement:33,PartRepas:17},
+      {id:9, Structure:2,TypeMission:'Formation',      Annee:2022,MontantTotal:35000, PartTransport:55,PartHebergement:28,PartRepas:17},
+      {id:10,Structure:2,TypeMission:'Formation',      Annee:2023,MontantTotal:38000, PartTransport:54,PartHebergement:29,PartRepas:17},
+      {id:11,Structure:2,TypeMission:'Formation',      Annee:2024,MontantTotal:36000, PartTransport:55,PartHebergement:28,PartRepas:17},
+      {id:12,Structure:2,TypeMission:'Formation',      Annee:2025,MontantTotal:11000, PartTransport:53,PartHebergement:30,PartRepas:17},
+      {id:13,Structure:2,TypeMission:'AutresMissions', Annee:2022,MontantTotal:107000,PartTransport:47,PartHebergement:35,PartRepas:18},
+      {id:14,Structure:2,TypeMission:'AutresMissions', Annee:2023,MontantTotal:120000,PartTransport:49,PartHebergement:34,PartRepas:17},
+      {id:15,Structure:2,TypeMission:'AutresMissions', Annee:2024,MontantTotal:129000,PartTransport:50,PartHebergement:33,PartRepas:17},
+      {id:16,Structure:2,TypeMission:'AutresMissions', Annee:2025,MontantTotal:37000, PartTransport:48,PartHebergement:36,PartRepas:16},
+    ],
+  };
+  init();
+}
+
+/* ════════ FILTRE ANNÉE ════════ */
+function getAnneesC(){
+  var sets=new Set();
+  ['budget','rh','contentieux','vehicules','fraisMission'].forEach(function(k){
+    (D[k]||[]).forEach(function(r){ var a=Number(r.Annee||r.annee||0); if(a>2000) sets.add(a); });
+  });
+  return [...sets].sort(function(a,b){return b-a;});
+}
+function buildYearBarConso(){
+  var annees=getAnneesC();
+  var bar=document.getElementById('year-btns-conso');
+  var wrap=document.getElementById('year-bar-conso');
+  if(!bar||!annees.length){ if(wrap) wrap.style.display='none'; return; }
+  wrap.style.display='flex';
+  if(!annees.includes(_anneeC)) _anneeC=annees[0]||2026;
+  bar.innerHTML=annees.map(function(a){
+    var act=a===_anneeC;
+    return '<button onclick="setAnneeC('+a+')" style="padding:3px 14px;border-radius:20px;font-size:11.5px;font-weight:700;cursor:pointer;transition:all .15s;border:1.5px solid '+(act?'var(--rep)':'var(--bord)')+';background:'+(act?'var(--rep)':'#fff')+';color:'+(act?'#fff':'var(--gris2)')+';">'+a+'</button>';
+  }).join('');
+}
+function setAnneeC(a){ _anneeC=a; buildYearBarConso(); renderTab(curTab); }
+/* Filtre les lignes par année sélectionnée — retourne uniquement les lignes de _anneeC */
+function fA(rows, col){
+  col=col||'Annee';
+  if(!rows||!rows.length) return rows;
+  var avecAnnee=rows.filter(function(r){ return Number(r[col])>0; });
+  if(!avecAnnee.length) return rows;
+  var filtre=avecAnnee.filter(function(r){ return Number(r[col])===_anneeC; });
+  return filtre.length?filtre:avecAnnee.filter(function(r){
+    var max=Math.max.apply(null,avecAnnee.map(function(x){return Number(x[col]);}));
+    return Number(r[col])===max;
+  });
+}
+
+/* ════════ INIT ════════ */
+function init(){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('tab-content').style.display='block';
+  buildYearBarConso();
+  renderTab(curTab);
+}
+function show(tab,el){
+  curTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderTab(tab);
+}
+function renderTab(tab){
+  const el=document.getElementById('tab-content');
+  if(tab==='budget')       el.innerHTML=tabBudget();
+  else if(tab==='rh')      el.innerHTML=tabRH();
+  else if(tab==='contentieux') el.innerHTML=tabContentieux();
+  else if(tab==='immobilier')  el.innerHTML=tabImmobilier();
+  else if(tab==='vehicules')   el.innerHTML=tabVehicules();
+  else if(tab==='fraisMission') el.innerHTML=tabMissions();
+  else if(tab==='informatique') el.innerHTML=tabInformatique();
+}
+
+/* ════════════════════════════════════════════════════════════
+   HIÉRARCHIE DES STRUCTURES
+   Parent référence le Sigle texte (ex: 'DI 972', 'DGDDI')
+   ou l'id numérique si Reference — détection automatique.
+   DGDDI = racine (total global), non sélectionnable dans la fiche.
+   Types sélectionnables fiche : DI, DR, SCN, Siège
+   Types consolidés : tous sauf Autre racine
+════════════════════════════════════════════════════════════ */
+
+const HIER = {
+  SIGLE_RACINE: 'DGDDI',
+  TYPES_FICHE:  new Set(['DI','DR','SCN','Siège','siège','SIEGE']),
+  TYPES_CONSO:  new Set(['DI','DR','SCN','Siège','siège','SIEGE','Autre']),
+};
+
+var _bySigle = null;
+var _byId    = null;
+
+function buildIdx() {
+  _bySigle = {}; _byId = {};
+  (D.structures||[]).forEach(function(s) {
+    _byId[s.id] = s;
+    var sg = strVal(s.Sigle||s.sigle||'').trim();
+    if (sg) _bySigle[sg] = s;
+  });
+}
+
+function parentOf(s) {
+  if (!_bySigle) buildIdx();
+  var raw = strVal(s.Parent||s.parent||'').trim();
+  if (!raw) return null;
+  var asId = parseInt(raw);
+  if (!isNaN(asId) && _byId[asId]) return _byId[asId];
+  return _bySigle[raw] || null;
+}
+
+function enfantsDe(s) {
+  if (!_bySigle) buildIdx();
+  return (D.structures||[]).filter(function(r) {
+    var p = parentOf(r);
+    return p && p.id === s.id;
+  });
+}
+
+function descendantsDe(s) {
+  var res = [];
+  enfantsDe(s).forEach(function(e) {
+    var typ = strVal(e.Type||e.type||'');
+    if (HIER.TYPES_CONSO.has(typ)) {
+      res.push(e);
+      descendantsDe(e).forEach(function(d) { res.push(d); });
+    }
+  });
+  return res;
+}
+
+function getRoot() {
+  if (!_bySigle) buildIdx();
+  return _bySigle[HIER.SIGLE_RACINE] || null;
+}
+
+/* Ordre d'affichage consolidation :
+   1. DGDDI (total global)
+   2. Siège DG + filles Autre
+   3. DI → filles DR+Autre
+   4. DR autonomes (parent=DGDDI) → filles
+   5. SCN */
+function ordered() {
+  if (!_bySigle) buildIdx();
+  var S = D.structures||[], out = [], seen = new Set();
+  function push(x){ if(x&&!seen.has(x.id)){ seen.add(x.id); out.push(x); } }
+
+  var root = getRoot();
+  if (root) push(root);
+
+  S.filter(function(x){ return ['Siège','siège','SIEGE'].includes(strVal(x.Type||x.type||'')); })
+   .forEach(function(siege){ push(siege); enfantsDe(siege).forEach(push); });
+
+  S.filter(function(x){ return strVal(x.Type||x.type||'')==='DI'; })
+   .forEach(function(di){ push(di); enfantsDe(di).forEach(push); });
+
+  S.filter(function(x){ return strVal(x.Type||x.type||'')==='DR' && !seen.has(x.id); })
+   .forEach(function(dr){ push(dr); enfantsDe(dr).forEach(push); });
+
+  S.filter(function(x){ return strVal(x.Type||x.type||'')==='SCN'; }).forEach(push);
+  return out;
+}
+
+/* Somme d'un indicateur pour une structure + tous ses descendants */
+function consoVal(s, dataArr, colStruct, colVal) {
+  var all = [s].concat(descendantsDe(s));
+  return all.reduce(function(tot, d) {
+    var row = dataArr.find(function(r){ return n(r[colStruct])===d.id; });
+    return tot + (row ? n(row[colVal]) : 0);
+  }, 0);
+}
+
+/* Sélecteur fiche identité */
+function selectorStructures() {
+  return (D.structures||[]).filter(function(s){
+    return HIER.TYPES_FICHE.has(strVal(s.Type||s.type||''));
+  });
+}
+
+/* ════════ FILTRE ANNÉE ════════ */
+function getAnneesC(){
+  var sets=new Set();
+  ['budget','rh','contentieux','vehicules','fraisMission'].forEach(function(k){
+    (D[k]||[]).forEach(function(r){ var a=Number(r.Annee||r.annee||0); if(a>2000) sets.add(a); });
+  });
+  return [...sets].sort(function(a,b){return b-a;});
+}
+function buildYearBarConso(){
+  var annees=getAnneesC();
+  var bar=document.getElementById('year-btns-conso');
+  var wrap=document.getElementById('year-bar-conso');
+  if(!bar||!annees.length){ if(wrap) wrap.style.display='none'; return; }
+  wrap.style.display='flex';
+  if(!annees.includes(_anneeC)) _anneeC=annees[0]||2026;
+  bar.innerHTML=annees.map(function(a){
+    var act=a===_anneeC;
+    return '<button onclick="setAnneeC('+a+')" style="padding:3px 14px;border-radius:20px;font-size:11.5px;font-weight:700;cursor:pointer;transition:all .15s;border:1.5px solid '+(act?'var(--rep)':'var(--bord)')+';background:'+(act?'var(--rep)':'#fff')+';color:'+(act?'#fff':'var(--gris2)')+';">'+a+'</button>';
+  }).join('');
+}
+function setAnneeC(a){ _anneeC=a; buildYearBarConso(); renderTab(curTab); }
+/* Filtre les lignes par année sélectionnée — retourne uniquement les lignes de _anneeC */
+function fA(rows, col){
+  col=col||'Annee';
+  if(!rows||!rows.length) return rows;
+  var avecAnnee=rows.filter(function(r){ return Number(r[col])>0; });
+  if(!avecAnnee.length) return rows;
+  var filtre=avecAnnee.filter(function(r){ return Number(r[col])===_anneeC; });
+  return filtre.length?filtre:avecAnnee.filter(function(r){
+    var max=Math.max.apply(null,avecAnnee.map(function(x){return Number(x[col]);}));
+    return Number(r[col])===max;
+  });
+}
+
+/* ════════ INIT ════════ */
+function init(){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('tab-content').style.display='block';
+  buildYearBarConso();
+  renderTab(curTab);
+}
+function show(tab,el){
+  curTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderTab(tab);
+}
+function renderTab(tab){
+  const el=document.getElementById('tab-content');
+  if(tab==='budget')       el.innerHTML=tabBudget();
+  else if(tab==='rh')      el.innerHTML=tabRH();
+  else if(tab==='contentieux') el.innerHTML=tabContentieux();
+  else if(tab==='immobilier')  el.innerHTML=tabImmobilier();
+  else if(tab==='vehicules')   el.innerHTML=tabVehicules();
+  else if(tab==='fraisMission') el.innerHTML=tabMissions();
+}
+
+/* ════════ ORDRE STRUCTURES ════════ */
+/* ════════ TAB BUDGET ════════ */
+function tabBudget(){
+  const c=CFG.c.B, structs=ordered(), bud=fA(D.budget||[]);
+  const types=['Fonctionnement','Investissement','Intervention'];
+
+  // KPI globaux — AE + CP toutes structures, année courante
+  let totAEn=0,totAEc=0,totCPn=0,totCPc=0;
+  bud.forEach(r=>{ totAEn+=n(r[c.ae_n]); totAEc+=n(r[c.ae_c]); totCPn+=n(r[c.cp_n]); totCPc+=n(r[c.cp_c]); });
+  const pAE=totAEn?Math.round(totAEc/totAEn*100):0;
+  const pCP=totCPn?Math.round(totCPc/totCPn*100):0;
+
+  // ── Tableau : une ligne AE + une ligne CP par (structure × type) ──
+  if(!_bySigle) buildIdx();
+  const TYPE_SIEGE_B=['Siège','siège','SIEGE'];
+  const rows=structs.map(s=>{
+    const typeS2=strVal(s.Type||s.type||'');
+    const sigle2=strVal(s.Sigle||s.sigle||'').trim();
+    if(typeS2==='Autre'&&sigle2!==HIER.SIGLE_RACINE) return ''; // masquer Autre non-racine
+    const sb=bud.filter(r=>r[c.struct]==s.id);
+    if(!sb.length) return `<tr class="r-${s.Type}"><td colspan="9" style="font-weight:600;padding:6px 10px;"><span class="badge b-${s.Type}">${s.Type}</span> ${s[CFG.c.S.nom]}&nbsp;&mdash;&nbsp;<span style="color:var(--gris3)">Pas de données</span></td></tr>`;
+
+    return types.map((t,ti)=>{
+      const r=sb.find(x=>strVal(x[c.typeb])===t);
+      if(!r) return `<tr class="r-${s.Type}">${ti===0?`<td rowspan="${types.length*2}" style="font-weight:600;vertical-align:middle;"><span class="badge b-${s.Type}">${s.Type}</span><br>${s[CFG.c.S.nom]}</td>`:''}<td rowspan="2" style="font-size:10.5px;color:var(--gris2);font-weight:600;vertical-align:middle;">${t}</td><td colspan="7" class="tc" style="color:var(--gris3)">—</td></tr><tr class="r-${s.Type}"></tr>`;
+
+      const aen=n(r[c.ae_n]),aed=n(r[c.ae_d]),aec=n(r[c.ae_c]);
+      const cpn=n(r[c.cp_n]),cpd=n(r[c.cp_d]),cpc=n(r[c.cp_c]);
+      const pae=aed?Math.round(aec/aed*100):aen?Math.round(aec/aen*100):0;
+      const pcp=cpd?Math.round(cpc/cpd*100):cpn?Math.round(cpc/cpn*100):0;
+      const ca=pae>95?'mf-danger':pae>80?'mf-warn':'mf-ok';
+      const cc=pcp>95?'mf-danger':pcp>80?'mf-warn':'mf-ok';
+
+      // Comparaison N-1 : chercher la ligne de l'année précédente
+      const annee=n(r[c.annee]);
+      const rN1=sb.find(x=>strVal(x[c.typeb])===t&&n(x[c.annee])===annee-1);
+      const aecN1=rN1?n(rN1[c.ae_c]):null;
+      const cpcN1=rN1?n(rN1[c.cp_c]):null;
+      const deltaAE=aecN1!==null?aec-aecN1:null;
+      const deltaCP=cpcN1!==null?cpc-cpcN1:null;
+      const deltaTag=(delta,base)=>{
+        if(delta===null||!base) return '';
+        const pct=Math.round(delta/base*100);
+        const cls=delta>0?'vs-bad':'vs-ok'; // hausse = mauvais (dépense), baisse = bon
+        return `<span class="vs ${cls}" style="font-size:9px;margin-left:4px;">${delta>0?'▲+':'▼'}${fmt(Math.abs(delta))}&#160;€ (${pct>0?'+':''}${pct}%)</span>`;
+      };
+
+      return `<tr class="r-${s.Type}">
+        ${ti===0?`<td rowspan="${types.length*2}" style="font-weight:600;vertical-align:middle;border-right:2px solid var(--bord);"><span class="badge b-${s.Type}">${s.Type}</span><br><span style="font-size:10px;">${s[CFG.c.S.nom]}</span></td>`:''}
+        <td rowspan="2" style="font-size:10.5px;color:var(--gris2);font-weight:600;vertical-align:middle;border-right:1px solid var(--bord);">${t}</td>
+        <td style="background:#E8F0FB;font-size:9px;color:#002F6C;font-weight:700;padding:3px 7px;">AE</td>
+        <td class="tr">${fmt(aen)}</td><td class="tr">${fmt(aed)}</td><td class="tr">${fmt(aec)}${deltaTag(deltaAE,aecN1)}</td>
+        <td class="tc"><div>${pae}%</div><div class="mbar"><div class="mfill ${ca}" style="width:${pae}%"></div></div></td>
+      </tr>
+      <tr class="r-${s.Type}">
+        <td style="background:#FFF3E0;font-size:9px;color:#7A3800;font-weight:700;padding:3px 7px;">CP</td>
+        <td class="tr">${fmt(cpn)}</td><td class="tr">${fmt(cpd)}</td><td class="tr">${fmt(cpc)}${deltaTag(deltaCP,cpcN1)}</td>
+        <td class="tc"><div>${pcp}%</div><div class="mbar"><div class="mfill ${cc}" style="width:${pcp}%"></div></div></td>
+      </tr>`;
+    }).join('');
+  }).join('');
+
+  return `
+  <div class="kpi-global">
+    ${(function(){
+      const mo=(D.moyennes||[])[0]||{};
+      const caeN=nPct(mo[CFG.c.MO.cae_n]);
+      const ccpN=nPct(mo[CFG.c.MO.ccp_n]);
+      const diffAE=caeN?(pAE-caeN>0?'<span style="color:#B52020">▲ +'+(pAE-caeN).toFixed(1)+'pts vs nat.</span>':'<span style="color:#1A6B3C">▼ '+(pAE-caeN).toFixed(1)+'pts vs nat.</span>'):'';
+      const diffCP=ccpN?(pCP-ccpN>0?'<span style="color:#B52020">▲ +'+(pCP-ccpN).toFixed(1)+'pts vs nat.</span>':'<span style="color:#1A6B3C">▼ '+(pCP-ccpN).toFixed(1)+'pts vs nat.</span>'):'';
+      return '<div class="kg-card" style="border-top-color:#002F6C">'
+        +'<div style="font-size:10px;font-weight:700;color:#002F6C;margin-bottom:6px;">AUTORISATIONS D&#39;ENGAGEMENT</div>'
+        +'<div style="display:flex;gap:8px;justify-content:center;">'
+        +'<div><div class="kg-val" style="font-size:18px">'+fmt(totAEn)+' €</div><div class="kg-lbl">Notifiées</div></div>'
+        +'<div><div class="kg-val vert" style="font-size:18px">'+fmt(totAEc)+' €</div><div class="kg-lbl">Consommées</div></div>'
+        +'<div><div class="kg-val">'+pAE+'%</div><div class="kg-lbl">Taux exec. '+(caeN?'(nat. '+caeN+'%)<br>'+diffAE:'')+'</div></div>'
+        +'</div></div>'
+        +'<div class="kg-card" style="border-top-color:#C05A00">'
+        +'<div style="font-size:10px;font-weight:700;color:#C05A00;margin-bottom:6px;">CRÉDITS DE PAIEMENT</div>'
+        +'<div style="display:flex;gap:8px;justify-content:center;">'
+        +'<div><div class="kg-val" style="font-size:18px">'+fmt(totCPn)+' €</div><div class="kg-lbl">Notifiés</div></div>'
+        +'<div><div class="kg-val vert" style="font-size:18px">'+fmt(totCPc)+' €</div><div class="kg-lbl">Consommés</div></div>'
+        +'<div><div class="kg-val">'+pCP+'%</div><div class="kg-lbl">Taux exec. '+(ccpN?'(nat. '+ccpN+'%)<br>'+diffCP:'')+'</div></div>'
+        +'</div></div>';
+    })()}
+  </div>
+  <div class="twrap">
+    <div class="twrap-title">💶 Budget par structure — ${new Date().getFullYear()}</div>
+    <div class="tscroll">
+    <table class="ct">
+      <thead><tr>
+        <th rowspan="2">Structure</th><th rowspan="2">Type budg.</th><th rowspan="2">AE/CP</th>
+        <th class="tr">Notif.</th><th class="tr">Mis à dispo</th><th class="tr">Consommé</th><th class="tc">Taux exec.</th>
+      </tr><tr>
+        <th class="tr" style="font-size:9px;color:var(--gris3)">€</th>
+        <th class="tr" style="font-size:9px;color:var(--gris3)">€</th>
+        <th class="tr" style="font-size:9px;color:var(--gris3)">€ (vs N-1)</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </div>
+  </div>`;
+}
+
+/* ════════ TAB RH ════════ */
+function tabRH(){
+  const c=CFG.c.RH, rhs=fA(D.rh||[]);
+  const structs=ordered();
+  if(!_bySigle) buildIdx();
+  const TS=['Siège','siège','SIEGE'];
+
+  /* Consolider un indicateur numérique pour s + tous ses descendants */
+  function cv(s,col){
+    return [s].concat(descendantsDe(s)).reduce(function(tot,d){
+      var row=rhs.find(function(r){return n(r[c.struct])===d.id;});
+      return tot+(row?n(row[col]):0);
+    },0);
+  }
+
+  /* Totaux globaux (toutes structures confondues, sans double-comptage) */
+  const totEtpt=Math.round(rhs.reduce(function(s,r){return s+n(r[c.etpt_tot]);},0));
+  const totMS=Math.ceil(rhs.reduce(function(s,r){return s+n(r[c.ms]);},0));
+  const totAbs=rhs.reduce(function(s,r){return s+n(r[c.abs]);},0);
+
+  const rows=structs.map(function(s){
+    const typeS=strVal(s.Type||s.type||'');
+    const sigle=strVal(s.Sigle||s.sigle||'').trim();
+    const isRoot=sigle===HIER.SIGLE_RACINE;
+    const isDI=typeS==='DI', isSiege=TS.includes(typeS), isDR=typeS==='DR', isSCN=typeS==='SCN';
+    const isAutre=typeS==='Autre';
+    // Les Autre ne s'affichent pas séparément (intégrés dans la DI/Siège parente)
+    if(isAutre&&!isRoot) return '';
+
+    // Données propres de cette structure
+    const own=rhs.find(function(r){return n(r[c.struct])===s.id;});
+
+    // ETPT : consolidé pour DI/Siège/racine, détaillé (AGCO+SU) pour DR/SCN
+    let etptAgco, etptSu, etptTot;
+    if(isRoot||isDI||isSiege){
+      // Somme de tous les descendants
+      etptAgco=Math.round(cv(s,c.etpt_agco));
+      etptSu  =Math.round(cv(s,c.etpt_su));
+      etptTot =Math.round(cv(s,c.etpt_tot)||etptAgco+etptSu);
+    } else {
+      etptAgco=own?Math.round(n(own[c.etpt_agco])):null;
+      etptSu  =own?Math.round(n(own[c.etpt_su])):null;
+      etptTot =own?Math.round(n(own[c.etpt_tot])||etptAgco+etptSu):null;
+    }
+
+    const ms=isRoot||isDI||isSiege ? Math.ceil(cv(s,c.ms)) : (own&&(isDR||isSCN)?Math.ceil(n(own[c.ms])):null);
+    const cib=(isDI||isSiege)?n(own?own[c.cib]:0):null;
+    const jf=own?n(own[c.jf]):null;
+    const abs=own?n(own[c.abs]):null;
+    const age=own?n(own[c.age]):null;
+
+    // Masquer ligne si vraiment rien
+    if(!isRoot&&etptTot===0&&!etptAgco&&!ms) return '';
+
+    const bold=isRoot||isDI||isSiege?'font-weight:700':'font-weight:400';
+    const bg=isRoot?'style="background:var(--bleu-pale)"':'';
+    const ndesc=isRoot||isDI||isSiege?descendantsDe(s).filter(function(d){return rhs.some(function(r){return n(r[c.struct])===d.id;});}).length:0;
+    const tag=ndesc?'<span style="font-size:9px;color:var(--gris3);margin-left:3px;">('+ndesc+')</span>':'';
+
+    const fmtEtpt=function(v){return v!==null&&v>0?v:'—';};
+
+    return '<tr class="r-'+typeS+'" '+bg+'>'
+      +'<td style="'+bold+'"><span class="badge b-'+typeS+'">'+typeS+'</span> '+(s.Nom||s.nom)+tag+'</td>'
+      +'<td class="tr">'+fmtEtpt(etptAgco)+'</td>'
+      +'<td class="tr">'+fmtEtpt(etptSu)+'</td>'
+      +'<td class="tr" style="font-weight:700">'+fmtEtpt(etptTot)+'</td>'
+      +'<td class="tr">'+(cib!==null?cib||'—':'—')+'</td>'
+      +'<td class="tr">'+(ms!==null?fmt(ms)+' €':'—')+'</td>'
+      +'<td class="tr">'+(jf!==null&&jf?jf.toFixed(1)+' j':'—')+'</td>'
+      +'<td class="tr">'+(abs!==null&&abs?abs:'—')+'</td>'
+      +'<td class="tr">'+(age!==null&&age?fmtAge(age):'—')+'</td>'
+      +'</tr>';
+  }).filter(Boolean).join('');
+
+  return `
+  <div class="kpi-global">
+    <div class="kg-card"><div class="kg-val">${totEtpt}</div><div class="kg-lbl">ETPT total réseau</div></div>
+    <div class="kg-card vert"><div class="kg-val" style="font-size:18px">${fmt(totMS)} €</div><div class="kg-lbl">Masse salariale totale</div></div>
+    <div class="kg-card orange"><div class="kg-val">${totAbs}</div><div class="kg-lbl">J. absentéisme</div></div>
+  </div>
+  <div class="twrap">
+    <div class="twrap-title">👥 Situation RH — ${_anneeC}</div>
+    <div class="tscroll"><table class="ct">
+      <thead><tr>
+        <th>Structure</th>
+        <th class="tr">ETPT AGCO</th><th class="tr">ETPT SU</th><th class="tr">ETPT Total</th>
+        <th class="tr">Eff. cibles</th><th class="tr">Masse sal.</th>
+        <th class="tr">J. form./agent</th><th class="tr">Absentéisme</th><th class="tr">Âge moyen</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </div>`;
+}
+
+/* ════════ TAB CONTENTIEUX ════════ */
+function tabContentieux(){
+  const c=CFG.c.CT, structs=ordered(), ct=fA(D.contentieux||[]);
+  const TYPE_SIEGE=['Siège','siège','SIEGE'];
+  if(!_bySigle) buildIdx();
+
+  function cv(s,col){ return consoVal(s,ct,c.struct,function(r){return n(r[col]);}); }
+
+  const totNb=ct.reduce(function(s,r){return s+n(r[c.nb]);},0);
+  const totCan=ct.reduce(function(s,r){return s+n(r[c.cannabis]);},0);
+  const totCoc=ct.reduce(function(s,r){return s+n(r[c.cocaine]);},0);
+  const totTab=ct.reduce(function(s,r){return s+n(r[c.tabac]);},0);
+
+  const rows=structs.map(function(s){
+    const typeS=strVal(s.Type||s.type||'');
+    const sigle=strVal(s.Sigle||s.sigle||'').trim();
+    const isRoot=sigle===HIER.SIGLE_RACINE;
+    const isAutre=typeS==='Autre';
+    if(isAutre&&!isRoot) return '';
+
+    const nb=cv(s,c.nb), can=cv(s,c.cannabis), coc=cv(s,c.cocaine), tab=cv(s,c.tabac);
+    if(!isRoot&&nb===0&&can===0&&coc===0&&tab===0) return '';
+
+    const cls=nb>=10?'color:var(--rouge);font-weight:700':nb>=5?'color:var(--orange);font-weight:600':'';
+    const bold=isRoot||typeS==='DI'||TYPE_SIEGE.includes(typeS)?'font-weight:700':'font-weight:400';
+    const bg=isRoot?'style="background:var(--bleu-pale)"':'';
+
+    return `<tr class="r-${typeS}" ${bg}>
+      <td style="${bold}"><span class="badge b-${typeS}">${typeS}</span> ${s.Nom||s.nom}</td>
+      <td class="tc" style="${cls}">${nb}</td>
+      <td class="tr">${fmtD(can)} kg</td>
+      <td class="tr">${fmtD(coc)} kg</td>
+      <td class="tr">${fmtD(tab)} kg</td>
+    </tr>`;
+  }).filter(Boolean).join('');
+
+  return `
+  <div class="kpi-global">
+    <div class="kg-card rouge"><div class="kg-val rouge">${totNb}</div><div class="kg-lbl">Total dossiers</div></div>
+    <div class="kg-card"><div class="kg-val" style="font-size:18px">${fmtD(totCan)} kg</div><div class="kg-lbl">Cannabis saisi</div></div>
+    <div class="kg-card"><div class="kg-val" style="font-size:18px">${fmtD(totCoc)} kg</div><div class="kg-lbl">Cocaïne saisie</div></div>
+    <div class="kg-card"><div class="kg-val" style="font-size:18px">${fmtD(totTab)} kg</div><div class="kg-lbl">Tabac saisi</div></div>
+  </div>
+  <div class="twrap">
+    <div class="twrap-title">⚖️ Contentieux — ${_anneeC}</div>
+    <table class="ct">
+      <thead><tr><th>Structure</th><th class="tc">Dossiers</th><th class="tr">Cannabis (kg)</th><th class="tr">Cocaïne (kg)</th><th class="tr">Tabac (kg)</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+/* ════════ TAB IMMOBILIER ════════ */
+function tabImmobilier(){
+  const c=CFG.c.IM, structs=ordered(), im=D.immobilier||[];
+  const TYPE_SIEGE=['Siège','siège','SIEGE'];
+  if(!_bySigle) buildIdx();
+
+  function sitesDe(s){
+    var all=[s].concat(descendantsDe(s));
+    return all.reduce(function(acc,d){
+      return acc.concat(im.filter(function(r){return n(r[c.struct])===d.id;}));
+    },[]);
+  }
+
+  const totM2=im.reduce(function(s,r){return s+n(r[c.m2]);},0);
+  const totBail=im.filter(function(r){return strVal(r[c.occ])==='Bail privé';});
+  const totLoyer=totBail.reduce(function(s,r){return s+n(r[c.loyer]);},0);
+
+  const rows=structs.map(function(s){
+    const typeS=strVal(s.Type||s.type||'');
+    const sigle=strVal(s.Sigle||s.sigle||'').trim();
+    const isRoot=sigle===HIER.SIGLE_RACINE;
+    const isAutre=typeS==='Autre';
+    if(isAutre&&!isRoot) return '';
+
+    const sites=sitesDe(s);
+    if(!isRoot&&!sites.length) return `<tr class="r-${typeS}"><td><span class="badge b-${typeS}">${typeS}</span> ${s.Nom||s.nom}</td><td colspan="5" class="tc" style="color:var(--gris3)">—</td></tr>`;
+
+    const m2=sites.reduce(function(s,r){return s+n(r[c.m2]);},0);
+    const loyer=sites.filter(function(r){return strVal(r[c.occ])==='Bail privé';}).reduce(function(s,r){return s+n(r[c.loyer]);},0);
+    const nbPub=sites.filter(function(r){return strVal(r[c.occ])==='Domaine public';}).length;
+    const nbBail=sites.filter(function(r){return strVal(r[c.occ])==='Bail privé';}).length;
+    const bold=isRoot||typeS==='DI'||TYPE_SIEGE.includes(typeS)?'font-weight:700':'font-weight:400';
+    const bg=isRoot?'style="background:var(--bleu-pale)"':'';
+
+    return `<tr class="r-${typeS}" ${bg}>
+      <td style="${bold}"><span class="badge b-${typeS}">${typeS}</span> ${s.Nom||s.nom}</td>
+      <td class="tr">${sites.length}</td>
+      <td class="tr">${nbPub}</td>
+      <td class="tr">${nbBail}</td>
+      <td class="tr">${fmt(m2)} m²</td>
+      <td class="tr">${loyer?fmt(loyer)+' €':'—'}</td>
+    </tr>`;
+  }).filter(Boolean).join('');
+
+  return `
+  <div class="kpi-global">
+    <div class="kg-card"><div class="kg-val">${im.length}</div><div class="kg-lbl">Sites total</div></div>
+    <div class="kg-card"><div class="kg-val">${im.filter(function(r){return strVal(r[c.occ])==='Domaine public';}).length}</div><div class="kg-lbl">Domaine public</div></div>
+    <div class="kg-card orange"><div class="kg-val orange">${totBail.length}</div><div class="kg-lbl">Baux privés</div></div>
+    <div class="kg-card vert"><div class="kg-val vert" style="font-size:18px">${fmt(totM2)}</div><div class="kg-lbl">m² totaux</div></div>
+    <div class="kg-card"><div class="kg-val" style="font-size:18px">${fmt(totLoyer)} €</div><div class="kg-lbl">Loyers annuels</div></div>
+  </div>
+  <div class="twrap">
+    <div class="twrap-title">🏛️ Patrimoine immobilier</div>
+    <div class="tscroll"><table class="ct">
+      <thead><tr><th>Structure</th><th class="tr">Sites</th><th class="tr">Dom. public</th><th class="tr">Baux privés</th><th class="tr">m²</th><th class="tr">Loyers/an</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </div>`;
+}
+
+/* ════════ TAB VÉHICULES ════════ */
+function tabVehicules(){
+  const c=CFG.c.VH, structs=ordered(), vh=fA(D.vehicules||[]);
+  const TYPE_SIEGE=['Siège','siège','SIEGE'];
+  const moData=(D.moyennes||[])[0]||{};
+  const nat=nPct(moData[CFG.c.MO.vet_n]);
+  if(!_bySigle) buildIdx();
+
+  function nbConso(s){ return consoVal(s,vh,c.struct,function(r){return n(r[c.nb]);}); }
+  function vetMoy(s){
+    var all=[s].concat(descendantsDe(s));
+    var vets=all.map(function(d){return vh.find(function(r){return n(r[c.struct])===d.id;});}).filter(Boolean).map(function(r){return n(r[c.vet_s]);}).filter(Boolean);
+    return vets.length?Math.round(vets.reduce(function(a,b){return a+b;},0)/vets.length):0;
+  }
+
+  const totVeh=vh.reduce(function(s,r){return s+n(r[c.nb]);},0);
+  const avgVet=vh.length?Math.round(vh.reduce(function(s,r){return s+n(r[c.vet_s]);},0)/vh.length):0;
+
+  const rows=structs.map(function(s){
+    const typeS=strVal(s.Type||s.type||'');
+    const sigle=strVal(s.Sigle||s.sigle||'').trim();
+    const isRoot=sigle===HIER.SIGLE_RACINE;
+    const isAutre=typeS==='Autre';
+    if(isAutre&&!isRoot) return '';
+
+    const nb=nbConso(s);
+    const vet=vetMoy(s);
+    if(!isRoot&&nb===0) return `<tr class="r-${typeS}"><td><span class="badge b-${typeS}">${typeS}</span> ${s.Nom||s.nom}</td><td colspan="3" class="tc" style="color:var(--gris3)">—</td></tr>`;
+
+    const clsV=nat&&vet>nat?'mf-danger':nat&&vet>nat*0.8?'mf-warn':'mf-ok';
+    const bold=isRoot||typeS==='DI'||TYPE_SIEGE.includes(typeS)?'font-weight:700':'font-weight:400';
+    const bg=isRoot?'style="background:var(--bleu-pale)"':'';
+
+    return `<tr class="r-${typeS}" ${bg}>
+      <td style="${bold}"><span class="badge b-${typeS}">${typeS}</span> ${s.Nom||s.nom}</td>
+      <td class="tr">${nb}</td>
+      <td class="tc"><div>${vet}%</div><div class="mbar"><div class="mfill ${clsV}" style="width:${vet}%"></div></div></td>
+      <td class="tc" style="color:var(--gris3)">${nat||'—'}${nat?'%':''}</td>
+    </tr>`;
+  }).filter(Boolean).join('');
+
+  return `
+  <div class="kpi-global">
+    <div class="kg-card"><div class="kg-val">${totVeh}</div><div class="kg-lbl">Véhicules total</div></div>
+    <div class="kg-card ${avgVet>nat?'rouge':'vert'}"><div class="kg-val ${avgVet>nat?'rouge':'vert'}">${avgVet}%</div><div class="kg-lbl">Vétusté moy. réseau</div></div>
+    <div class="kg-card"><div class="kg-val" style="color:var(--gris2)">${nat||'—'}${nat?'%':''}</div><div class="kg-lbl">Référence nationale</div></div>
+  </div>
+  <div class="twrap">
+    <div class="twrap-title">🚗 Parc de véhicules — ${_anneeC}</div>
+    <div class="tscroll"><table class="ct">
+      <thead><tr><th>Structure</th><th class="tr">Nb véhicules</th><th>Vétusté structure</th><th>Vétusté nationale</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </div>`;
+}
+
+/* ════════ TAB FRAIS DE MISSION ════════ */
+function tabMissions(){
+  const c=CFG.c.FM, structs=ordered(), fm=fA(D.fraisMission||[]);
+  const TYPE_SIEGE=['Siège','siège','SIEGE'];
+  const types=['Formation','AutresMissions'];
+  const tlabels={'Formation':'Formation','AutresMissions':'Autres missions'};
+  const annees=[...new Set(fm.map(function(r){return Number(r[c.annee]);}))].filter(Boolean).sort();
+  if(!_bySigle) buildIdx();
+
+  function mtConso(s,type,annee){
+    var all=[s].concat(descendantsDe(s));
+    return all.reduce(function(tot,d){
+      var row=fm.find(function(r){return n(r[c.struct])===d.id&&strVal(r[c.type])===type&&Number(r[c.annee])===annee;});
+      return tot+(row?n(row[c.mt]):0);
+    },0);
+  }
+
+  const totF=fm.filter(function(r){return strVal(r[c.type])==='Formation';}).reduce(function(s,r){return s+n(r[c.mt]);},0);
+  const totA=fm.filter(function(r){return strVal(r[c.type])==='AutresMissions';}).reduce(function(s,r){return s+n(r[c.mt]);},0);
+
+  const rows=structs.map(function(s){
+    const typeS=strVal(s.Type||s.type||'');
+    const sigle=strVal(s.Sigle||s.sigle||'').trim();
+    const isRoot=sigle===HIER.SIGLE_RACINE;
+    const isAutre=typeS==='Autre';
+    if(isAutre&&!isRoot) return '';
+
+    const hasDonnees=types.some(function(t){return annees.some(function(a){return mtConso(s,t,a)>0;});});
+    if(!isRoot&&!hasDonnees) return '';
+
+    const bold=isRoot||typeS==='DI'||TYPE_SIEGE.includes(typeS)?'font-weight:700':'font-weight:400';
+    const bg=isRoot?'style="background:var(--bleu-pale)"':'';
+
+    return types.map(function(t,ti){
+      const rowsT=annees.map(function(a){
+        var v=mtConso(s,t,a);
+        return '<td class="tr">'+(v?fmt(v)+' €':'—')+'</td>';
+      }).join('');
+      return '<tr class="r-'+typeS+'" '+bg+'>'
+        +'<td style="'+bold+'">'+(ti===0?'<span class="badge b-'+typeS+'">'+typeS+'</span> '+(s.Nom||s.nom):'↳')+'</td>'
+        +'<td style="font-size:10.5px;color:var(--gris2);font-weight:600;">'+tlabels[t]+'</td>'
+        +rowsT+'</tr>';
+    }).join('');
+  }).filter(Boolean).join('');
+
+  const totCols=annees.map(function(a){
+    return '<td class="tr">'+fmt(fm.filter(function(r){return Number(r[c.annee])===a;}).reduce(function(s,r){return s+n(r[c.mt]);},0))+' €</td>';
+  }).join('');
+
+  return `
+  <div class="kpi-global">
+    <div class="kg-card"><div class="kg-val" style="font-size:18px">${fmt(totF+totA)} €</div><div class="kg-lbl">Total frais</div></div>
+    <div class="kg-card"><div class="kg-val" style="font-size:18px">${fmt(totF)} €</div><div class="kg-lbl">dont Formation</div></div>
+    <div class="kg-card"><div class="kg-val" style="font-size:18px">${fmt(totA)} €</div><div class="kg-lbl">dont Autres missions</div></div>
+  </div>
+  <div class="twrap">
+    <div class="twrap-title">✈️ Frais de mission — ${_anneeC}</div>
+    <div class="tscroll"><table class="ct">
+      <thead><tr><th>Structure</th><th>Type</th>${annees.map(function(a){return'<th class="tr">'+a+'</th>';}).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="2">TOTAL</td>${totCols}</tr></tfoot>
+    </table></div>
+  </div>`;
+}
+
+/* ════════ TAB INFORMATIQUE ════════ */
+function tabInformatique(){
+  const c=CFG.c.IT, rhC=CFG.c.RH;
+  const ANNEES=[2022,2023,2024,2025];
+  const it=D.informatique||[], rhs=D.rh||[];
+  const mo=(D.moyennes||[])[0]||{};
+  if(!_bySigle) buildIdx();
+  const TYPE_SIEGE=['Siège','siège','SIEGE'];
+
+  // Périmètre outremer
+  const SIGLES_OM=new Set(['DI 972','DR 974','DR 976','DR 988','DR 987']);
+  const spm=(D.structures||[]).find(function(x){return (x.Nom||x.nom||'').indexOf('Pierre')!==-1;});
+  if(spm){SIGLES_OM.add((spm.Sigle||spm.sigle||'').trim());}
+
+  // ETPT consolidé pour une structure et une année
+  function etptConso(s,annee){
+    return [s].concat(descendantsDe(s)).reduce(function(tot,d){
+      var r=rhs.find(function(x){return n(x[rhC.struct])===d.id&&Number(x[rhC.annee])===annee;});
+      return tot+(r?Math.round(n(r[rhC.etpt_tot])||n(r[rhC.etpt_su])+n(r[rhC.etpt_agco])):0);
+    },0);
+  }
+
+  // Calcul coût moyen 4 ans et taux équip pour une structure
+  function calcIT(s){
+    var anneesDispo=ANNEES.filter(function(a){return it.some(function(r){return n(r[c.struct])===s.id&&Number(r[c.annee])===a;});});
+    if(!anneesDispo.length) return null;
+    var sumDep=0,sumEtpt=0,cntEtpt=0;
+    anneesDispo.forEach(function(a){
+      var row=it.find(function(r){return n(r[c.struct])===s.id&&Number(r[c.annee])===a;});
+      sumDep+=row?n(row[c.dep]):0;
+      var e=etptConso(s,a);
+      if(e>0){sumEtpt+=e;cntEtpt++;}
+    });
+    var moyDep=sumDep/anneesDispo.length;
+    var moyEtpt=cntEtpt>0?sumEtpt/cntEtpt:0;
+    var coutMoy=moyEtpt>0?Math.round(moyDep/moyEtpt):null;
+    // Taux équip dernière année
+    var last=it.filter(function(r){return n(r[c.struct])===s.id;}).sort(function(a,b){return Number(b[c.annee])-Number(a[c.annee]);})[0];
+    var etptLast=last?etptConso(s,Number(last[c.annee])):0;
+    var taux=(last&&etptLast>0)?(n(last[c.pcp])+n(last[c.pcb]))/etptLast*100:null;
+    return {coutMoy:coutMoy, taux:taux, lastAnnee:last?Number(last[c.annee]):null};
+  }
+
+  // Moyennes de référence dynamiques (si pas dans Moyennes)
+  function moyRef(typeRef,siglesOM,field){
+    var val=nPct(mo[CFG.c.MO[field]]);
+    if(val) return val;
+    var structs=(D.structures||[]).filter(function(s){
+      if(siglesOM) return siglesOM.has((s.Sigle||s.sigle||'').trim());
+      return strVal(s.Type||s.type||'')===typeRef;
+    });
+    var vals=[];
+    structs.forEach(function(s){
+      var r=calcIT(s);
+      if(r&&r[field==='info_tx_di'||field==='info_tx_scn'||field==='info_tx_om'?'taux':'coutMoy']!==null)
+        vals.push(r[field==='info_tx_di'||field==='info_tx_scn'||field==='info_tx_om'?'taux':'coutMoy']);
+    });
+    return vals.length?vals.reduce(function(a,b){return a+b;},0)/vals.length:null;
+  }
+
+  // Structures à afficher : DI + SCN + DR autonomes + Siège
+  const structs=ordered().filter(function(s){
+    const typeS=strVal(s.Type||s.type||'');
+    const sigle=(s.Sigle||s.sigle||'').trim();
+    const isRoot=sigle==='DGDDI';
+    const isAutre=typeS==='Autre';
+    if(isRoot||isAutre) return false;
+    if(typeS==='DI'||typeS==='SCN'||TYPE_SIEGE.includes(typeS)) return true;
+    // DR autonomes seulement
+    if(typeS==='DR'){
+      var p=parentOf(s);
+      return p&&(p.Sigle||p.sigle||'').trim()==='DGDDI';
+    }
+    return false;
+  });
+
+  // Totaux pour KPI global
+  var totDep=0,cntDep=0;
+  structs.forEach(function(s){
+    ANNEES.forEach(function(a){
+      var row=it.find(function(r){return n(r[c.struct])===s.id&&Number(r[c.annee])===a;});
+      if(row){totDep+=n(row[c.dep]);cntDep++;}
+    });
+  });
+
+  // En-tête du tableau
+  var thead='<thead><tr><th>Structure</th>';
+  ANNEES.forEach(function(a){ thead+='<th class="tr">Dép. '+a+' (€)</th><th class="tr">PC tot.</th>'; });
+  thead+='<th class="tr">Taux équip.</th><th class="tr">Coût moy./ETPT</th></tr></thead>';
+
+  var tbody=structs.map(function(s){
+    const typeS=strVal(s.Type||s.type||'');
+    const sigle=(s.Sigle||s.sigle||'').trim();
+    const isOM=SIGLES_OM.has(sigle);
+    var kRef,txRef;
+    if(typeS==='DI'||TYPE_SIEGE.includes(typeS)){
+      kRef=moyRef('DI',null,'info_dep_di'); txRef=moyRef('DI',null,'info_tx_di');
+    } else if(typeS==='SCN'){
+      kRef=moyRef('SCN',null,'info_dep_scn'); txRef=moyRef('SCN',null,'info_tx_scn');
+    } else {
+      kRef=moyRef(null,SIGLES_OM,'info_dep_om'); txRef=moyRef(null,SIGLES_OM,'info_tx_om');
+    }
+    var calcul=calcIT(s);
+    var taux=calcul?calcul.taux:null;
+    var coutMoy=calcul?calcul.coutMoy:null;
+    var clsTaux=txRef&&taux!==null?(taux<txRef*0.9?'style="color:var(--rouge)"':taux>txRef*1.1?'style="color:var(--vert)"':''):'';
+    var clsCout=kRef&&coutMoy!==null?(coutMoy>kRef*1.1?'style="color:var(--rouge)"':coutMoy<kRef*0.9?'style="color:var(--vert)"':''):'';
+
+    var cellsAnnees=ANNEES.map(function(a){
+      var row=it.find(function(r){return n(r[c.struct])===s.id&&Number(r[c.annee])===a;});
+      var dep=row?fmt(Math.round(n(row[c.dep]))):'—';
+      var pctot=row?n(row[c.pcp])+n(row[c.pcb]):'—';
+      return '<td class="tr">'+dep+'</td><td class="tr">'+pctot+'</td>';
+    }).join('');
+
+    return '<tr class="r-'+typeS+'">'
+      +'<td><span class="badge b-'+typeS+'">'+typeS+'</span> '+(s.Nom||s.nom)+'</td>'
+      +cellsAnnees
+      +'<td class="tr" '+clsTaux+'>'+(taux!==null?taux.toFixed(1)+'%':'—')+'</td>'
+      +'<td class="tr" '+clsCout+'>'+(coutMoy!==null?fmt(coutMoy)+' €':'—')+'</td>'
+      +'</tr>';
+  }).join('');
+
+  // Ligne références
+  var refRow='<tr style="background:var(--gris4);font-size:10px;color:var(--gris2);">'
+    +'<td colspan="'+(ANNEES.length*2+1)+'">Références : Moy. DI, Moy. SCN, Moy. Outremer (calculées dynamiquement)</td>'
+    +'<td class="tr">'+(moyRef('DI',null,'info_tx_di')?moyRef('DI',null,'info_tx_di').toFixed(1)+'% (DI)':'—')+'</td>'
+    +'<td class="tr">'+(moyRef('DI',null,'info_dep_di')?fmt(Math.round(moyRef('DI',null,'info_dep_di')))+' € (DI)':'—')+'</td>'
+    +'</tr>';
+
+  return `
+  <div class="kpi-global">
+    <div class="kg-card"><div class="kg-val" style="font-size:18px">${fmt(Math.round(totDep/Math.max(cntDep/ANNEES.length,1)))} €</div><div class="kg-lbl">Dépense moy. bureautique</div></div>
+    <div class="kg-card"><div class="kg-val" style="color:var(--gris2)">${structs.length}</div><div class="kg-lbl">Structures avec données</div></div>
+  </div>
+  <div class="twrap">
+    <div class="twrap-title">💻 Informatique bureautique — 4 ans</div>
+    <div class="tscroll"><table class="ct">
+      ${thead}
+      <tbody>${tbody}${refRow}</tbody>
+    </table></div>
+  </div>`;
+}
+
+/* ════════ UTILITAIRES ════════ */
+function fmt(v){ return (v!=null&&v!=='')?Number(v).toLocaleString('fr-FR'):'—'; }
+function fmtD(v){ return (v!=null&&v!=='')?Number(v).toLocaleString('fr-FR',{maximumFractionDigits:1}):'—'; }
+
+/* ════════════════════════════════════════════════════
+   EXPORT PDF — CONSOLIDATION
+════════════════════════════════════════════════════ */
+
+// Définition des onglets disponibles
+const TABS_DEF = [
+  { id:'budget',       label:'Budget',          ico:'💶' },
+  { id:'rh',           label:'RH',              ico:'👥' },
+  { id:'contentieux',  label:'Contentieux',     ico:'⚖️' },
+  { id:'immobilier',   label:'Immobilier',      ico:'🏛️' },
+  { id:'vehicules',    label:'Véhicules',       ico:'🚗' },
+  { id:'fraisMission', label:'Frais de mission',ico:'✈️' },
+];
+
+function openPdfModal(){ document.getElementById('pdf-overlay').classList.add('open'); }
+function closePdfModal(){ document.getElementById('pdf-overlay').classList.remove('open'); }
+function closePdfModalOutside(e){ if(e.target===document.getElementById('pdf-overlay')) closePdfModal(); }
+
+function toggleTabCheck(el){
+  el.classList.toggle('checked');
+  el.querySelector('.tab-cb').textContent = el.classList.contains('checked') ? '✓' : '';
+}
+function selAllTabs(on){
+  document.querySelectorAll('.tab-check').forEach(el=>{
+    if(on){ el.classList.add('checked'); el.querySelector('.tab-cb').textContent='✓'; }
+    else  { el.classList.remove('checked'); el.querySelector('.tab-cb').textContent=''; }
+  });
+}
+function toggleOpt(el){ el.classList.toggle('checked'); }
+
+function setConsoProgress(pct, msg){
+  document.getElementById('conso-prog-fill').style.width = pct + '%';
+  document.getElementById('conso-prog-msg').textContent  = msg;
+}
+
+async function doExportPDF(){
+  // Récupérer les onglets sélectionnés
+  const selectedTabs = [...document.querySelectorAll('.tab-check.checked')]
+    .map(el => el.dataset.tab);
+  if(!selectedTabs.length){ alert('Sélectionnez au moins un onglet.'); return; }
+
+  const inclKpi     = document.getElementById('opt-kpi').classList.contains('checked');
+  const inclTableau = document.getElementById('opt-tableau').classList.contains('checked');
+  const paysage     = document.getElementById('opt-paysage').classList.contains('checked');
+  const inclDate    = document.getElementById('opt-date').classList.contains('checked');
+
+  const btn = document.getElementById('btn-conso-export');
+  btn.disabled = true;
+  document.getElementById('conso-prog').style.display = 'block';
+
+  try {
+    await genConsoPDF(selectedTabs, inclKpi, inclTableau, paysage, inclDate);
+  } catch(e) {
+    console.error(e);
+    alert('Erreur lors de la génération : ' + (e.message || String(e)));
+  }
+
+  btn.disabled = false;
+  document.getElementById('conso-prog').style.display = 'none';
+  setConsoProgress(0,'');
+  closePdfModal();
+}
+
+async function genConsoPDF(tabs, inclKpi, inclTableau, paysage, inclDate){
+  const { jsPDF } = window.jspdf;
+  const orient  = paysage ? 'landscape' : 'portrait';
+  const pageW   = paysage ? 297 : 210;
+  const pageH   = paysage ? 210 : 297;
+  const margin  = 12;
+  const contentW = pageW - 2*margin;
+
+  const pdf = new jsPDF({ orientation: orient, unit:'mm', format:'a4' });
+
+  // ── DATE DE RÉFÉRENCE ──
+  const dateRef = (function(){
+    // Chercher la date la plus récente dans les données Grist
+    const moisFR = ['janvier','février','mars','avril','mai','juin',
+                    'juillet','août','septembre','octobre','novembre','décembre'];
+    const now = new Date();
+    return `${now.getDate()} ${moisFR[now.getMonth()]} ${now.getFullYear()}`;
+  })();
+
+  // ── PAGE DE GARDE ──
+  setConsoProgress(5, 'Génération de la page de garde…');
+  await addCoverPage(pdf, pageW, pageH, margin, dateRef, orient);
+
+  // ── ONGLETS ──
+  const tabFns = { budget:tabBudget, rh:tabRH, contentieux:tabContentieux,
+                   immobilier:tabImmobilier, vehicules:tabVehicules, fraisMission:tabMissions };
+
+  for(let ti=0; ti<tabs.length; ti++){
+    const tabId  = tabs[ti];
+    const tabDef = TABS_DEF.find(t=>t.id===tabId);
+    setConsoProgress(10 + Math.round(ti/tabs.length*80), `Onglet ${ti+1}/${tabs.length} : ${tabDef?.label||tabId}…`);
+
+    pdf.addPage(orient==='landscape'?'a4':'a4', orient);
+
+    // En-tête d'onglet
+    const yStart = addTabHeader(pdf, tabDef, pageW, margin, dateRef);
+
+    // KPI globaux (rendu texte via jsPDF direct)
+    let yCursor = yStart;
+    const tabHtml = tabFns[tabId] ? tabFns[tabId]() : '';
+    if(!tabHtml) continue;
+
+    if(inclKpi){
+      yCursor = await addKpiSection(pdf, tabId, yCursor, pageW, pageH, margin, orient, inclDate);
+    }
+
+    if(inclTableau){
+      yCursor = await addTableSection(pdf, tabId, tabHtml, yCursor, pageW, pageH, margin, orient, inclDate, tabDef);
+    }
+
+    // Pied de page sur chaque page de cet onglet
+    if(inclDate) addFooter(pdf, tabDef, dateRef, pageW, pageH, margin);
+  }
+
+  // Numéroter toutes les pages
+  const totalPages = pdf.internal.getNumberOfPages();
+  for(let p=2; p<=totalPages; p++){
+    pdf.setPage(p);
+    if(inclDate){
+      // Déjà géré par addFooter — mise à jour avec total
+      pdf.setFontSize(7); pdf.setTextColor(120);
+      const txt = `Tableau de bord de la DGDDI — Données au ${dateRef} — Page ${p-1}/${totalPages-1}`;
+      pdf.text(txt, margin, pageH-4);
+      pdf.setTextColor(0);
+    }
+  }
+
+  setConsoProgress(100, 'Finalisation…');
+  await new Promise(r=>setTimeout(r,200));
+  pdf.save(`consolidation-DGDDI-${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+/* ── PAGE DE GARDE ── */
+async function addCoverPage(pdf, pageW, pageH, margin, dateRef, orient){
+  // Fond bleu
+  pdf.setFillColor(0, 47, 108);
+  pdf.rect(0, 0, pageW, pageH, 'F');
+
+  // Liseré doré en bas
+  pdf.setFillColor(200, 160, 0);
+  pdf.rect(0, pageH-8, pageW, 8, 'F');
+
+  // Logo — chargé comme image
+  try {
+    const logoData = await loadImageAsBase64('https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg/250px-Logo_des_Douanes_Fran%C3%A7aises.svg.png');
+    // Logo 180×221 px → proportion 0.814 → afficher en 35mm haut
+    const logoH = 43; const logoW = Math.round(logoH * 180/221);
+    pdf.addImage(logoData, 'PNG', (pageW-logoW)/2, pageH*0.12, logoW, logoH);
+  } catch(e) {
+    // Fallback texte si image inaccessible
+    pdf.setFontSize(11); pdf.setTextColor(200,200,200);
+    pdf.text('DOUANES FRANÇAISES', pageW/2, pageH*0.22, {align:'center'});
+  }
+
+  // Titre principal
+  pdf.setFontSize(22); pdf.setTextColor(255,255,255);
+  pdf.setFont('helvetica','bold');
+  pdf.text('Tableau de bord', pageW/2, pageH*0.52, {align:'center'});
+  pdf.text('de la DGDDI', pageW/2, pageH*0.52+10, {align:'center'});
+
+  // Ligne de séparation
+  pdf.setDrawColor(200,160,0); pdf.setLineWidth(0.8);
+  pdf.line(margin*3, pageH*0.62, pageW-margin*3, pageH*0.62);
+
+  // Date
+  pdf.setFontSize(13); pdf.setFont('helvetica','normal');
+  pdf.setTextColor(200,220,255);
+  pdf.text(`Données au ${dateRef}`, pageW/2, pageH*0.68, {align:'center'});
+
+  // Sous-titre
+  pdf.setFontSize(9); pdf.setTextColor(150,180,220);
+  pdf.text('Direction Générale des Douanes et Droits Indirects', pageW/2, pageH*0.74, {align:'center'});
+
+  pdf.setFont('helvetica','normal'); pdf.setTextColor(0);
+}
+
+/* ── EN-TÊTE D'ONGLET ── */
+function addTabHeader(pdf, tabDef, pageW, margin, dateRef){
+  pdf.setFillColor(0, 47, 108);
+  pdf.rect(margin, margin, pageW-2*margin, 10, 'F');
+  pdf.setFontSize(11); pdf.setTextColor(255,255,255); pdf.setFont('helvetica','bold');
+  const label = (tabDef?.label||'') + ' — Consolidation DGDDI';
+  pdf.text(label, margin+4, margin+7);
+  pdf.setTextColor(180,210,255); pdf.setFontSize(7); pdf.setFont('helvetica','normal');
+  pdf.text(`Données au ${dateRef}`, pageW-margin-4, margin+7, {align:'right'});
+  pdf.setTextColor(0);
+  return margin + 14; // y après l'en-tête
+}
+
+/* ── KPI via autotable ── */
+async function addKpiSection(pdf, tabId, yStart, pageW, pageH, margin, orient, inclDate){
+  // Extraire les KPI depuis le HTML généré
+  const html = (window['tab'+tabId.charAt(0).toUpperCase()+tabId.slice(1)] ||
+                window['tab'+tabId[0].toUpperCase()+tabId.slice(1)] || (()=>''))();
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const cards = tmp.querySelectorAll('.kg-card');
+  if(!cards.length) return yStart;
+
+  const kpiData = [...cards].map(c => [
+    c.querySelector('.kg-val')?.textContent?.trim()||'',
+    c.querySelector('.kg-lbl')?.textContent?.trim()||''
+  ]);
+
+  // Afficher comme tableau 1 ligne
+  const cols = kpiData.length;
+  const colW  = (pageW - 2*margin) / cols;
+
+  pdf.setFillColor(230,236,248);
+  kpiData.forEach((kpi, i)=>{
+    const x = margin + i*colW;
+    pdf.setFillColor(230,236,248);
+    pdf.rect(x, yStart, colW-1, 14, 'F');
+    pdf.setFontSize(12); pdf.setTextColor(0,47,108); pdf.setFont('helvetica','bold');
+    pdf.text(kpi[0], x+colW/2, yStart+6, {align:'center'});
+    pdf.setFontSize(7); pdf.setTextColor(74,90,106); pdf.setFont('helvetica','normal');
+    pdf.text(kpi[1], x+colW/2, yStart+11, {align:'center'});
+  });
+  pdf.setTextColor(0);
+  return yStart + 17;
+}
+
+/* ── TABLEAU via autotable ── */
+async function addTableSection(pdf, tabId, html, yStart, pageW, pageH, margin, orient, inclDate, tabDef){
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const tables = tmp.querySelectorAll('table');
+  if(!tables.length) return yStart;
+
+  let y = yStart;
+
+  tables.forEach((tbl, tblIdx) => {
+    // Titre du tableau (twrap-title précédent)
+    const twrap = tbl.closest('.twrap') || tbl.parentElement?.parentElement;
+    const titleEl = twrap?.querySelector('.twrap-title');
+    if(titleEl){
+      pdf.setFillColor(0,47,108);
+      pdf.rect(margin, y, pageW-2*margin, 7, 'F');
+      pdf.setFontSize(9); pdf.setTextColor(255,255,255); pdf.setFont('helvetica','bold');
+      pdf.text(titleEl.textContent.replace(/[^\x20-\x7E\xC0-\xFF]/g,'').trim(), margin+3, y+5);
+      pdf.setFont('helvetica','normal'); pdf.setTextColor(0);
+      y += 8;
+    }
+
+    // Extraire head + body du tableau
+    const headers = [...tbl.querySelectorAll('thead tr')].map(tr =>
+      [...tr.querySelectorAll('th')].map(th => ({
+        content: th.textContent.trim(),
+        colSpan: parseInt(th.getAttribute('colspan')||1),
+        styles: {
+          fillColor:[230,236,248], textColor:[0,47,108],
+          fontStyle:'bold', fontSize:7.5, halign: th.classList.contains('tr')?'right':'left'
+        }
+      }))
+    );
+
+    const bodyRows = [...tbl.querySelectorAll('tbody tr')].map(tr => {
+      const type = [...tr.classList].find(c=>c.startsWith('r-'))?.replace('r-','') || '';
+      const bgMap = {SIEGE:[245,240,255],DI:[238,245,255],DR:[248,251,255],SCN:[240,255,245]};
+      const bg = bgMap[type]||[255,255,255];
+      return [...tr.querySelectorAll('td')].map((td,ci) => ({
+        content: td.textContent.replace(/[^\x20-\x7EÀ-ÿ]/g,' ').replace(/\s+/g,' ').trim(),
+        colSpan: parseInt(td.getAttribute('colspan')||1),
+        styles: {
+          fillColor: bg,
+          fontSize: 7.5,
+          halign: td.classList.contains('tr')?'right': td.classList.contains('tc')?'center':'left',
+          fontStyle: td.style.fontWeight==='700'||td.classList.contains('tbold')?'bold':'normal',
+          cellPadding: {top:2,bottom:2,left: ci===0&&type==='DR'?8:3, right:3}
+        }
+      }));
+    });
+
+    const footRows = [...tbl.querySelectorAll('tfoot tr')].map(tr =>
+      [...tr.querySelectorAll('td')].map(td => ({
+        content: td.textContent.trim(),
+        colSpan: parseInt(td.getAttribute('colspan')||1),
+        styles: { fillColor:[230,236,248], fontStyle:'bold', fontSize:7.5,
+                  halign: td.classList.contains('tr')?'right':'left' }
+      }))
+    );
+
+    pdf.autoTable({
+      head: headers,
+      body: bodyRows,
+      foot: footRows,
+      startY: y,
+      margin: { left:margin, right:margin, top: margin+12, bottom: inclDate?14:10 },
+      theme: 'grid',
+      styles: { fontSize:7.5, cellPadding:2, overflow:'linebreak', lineColor:[205,214,228], lineWidth:0.1 },
+      headStyles: { fillColor:[230,236,248], textColor:[0,47,108], fontStyle:'bold', fontSize:7.5 },
+      footStyles: { fillColor:[230,236,248], fontStyle:'bold' },
+      showFoot: 'lastPage',
+      // Répéter l'en-tête sur chaque page
+      showHead: 'everyPage',
+      // Éviter de couper une DI et ses DR entre deux pages
+      rowPageBreak: 'auto',
+      didDrawPage: function(data){
+        // En-tête sur les pages de continuation
+        if(data.pageNumber > 1){
+          addTabHeader(pdf, tabDef, pageW, margin, '');
+        }
+        // Pied de page
+        if(inclDate){
+          pdf.setFontSize(7); pdf.setTextColor(120);
+          pdf.text(
+            `Tableau de bord de la DGDDI — Données au ${(window._pdfDateRef||'')} — Page ${pdf.internal.getNumberOfPages()}`,
+            margin, pageH-4
+          );
+          pdf.setTextColor(0);
+        }
+      }
+    });
+
+    y = pdf.lastAutoTable.finalY + 6;
+  });
+
+  return y;
+}
+
+/* ── PIED DE PAGE ── */
+function addFooter(pdf, tabDef, dateRef, pageW, pageH, margin){
+  // Stocke la date pour didDrawPage
+  window._pdfDateRef = dateRef;
+}
+
+/* ── CHARGEMENT IMAGE BASE64 ── */
+function loadImageAsBase64(url){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function(){
+      const c = document.createElement('canvas');
+      c.width=img.width; c.height=img.height;
+      c.getContext('2d').drawImage(img,0,0);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = ()=>reject(new Error('Image non chargeable'));
+    img.src = url;
+    setTimeout(()=>reject(new Error('Timeout')), 5000);
+  });
+}
+
+
+window.addEventListener('load',initGrist);
+</script>
+</body>
+</html>

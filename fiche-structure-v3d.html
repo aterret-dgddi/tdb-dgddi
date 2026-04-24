@@ -1,0 +1,3270 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fiche de structure — Indicateurs de gestion</title>
+<!-- jsPDF + html2canvas pour export PDF natif --><!-- upd-1776768626 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Cabin:wght@400;500;600;700&display=swap');
+
+:root {
+  --rep:#002F6C; --rep2:#1351A8; --rep-pale:#E6ECF8;
+  --rouge:#B52020; --vert:#1A6B3C; --orange:#C05A00; --jaune:#8A6800;
+  --gris1:#1E2D3D; --gris2:#4A5A6A; --gris3:#8A9BAA; --gris4:#EEF2F7;
+  --blanc:#FFFFFF; --bord:#CDD6E4;
+  --shadow:0 2px 8px rgba(0,30,80,.10);
+  --shadow-lg:0 8px 32px rgba(0,20,70,.22);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{font-size:13px;}
+body{font-family:'Cabin',sans-serif;background:#F2F5FA;color:var(--gris1);line-height:1.5;}
+
+/* ══════════════════════════════════
+   TOOLBAR
+══════════════════════════════════ */
+#toolbar{
+  position:sticky;top:0;z-index:300;
+  background:var(--rep);padding:9px 18px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  box-shadow:0 2px 14px rgba(0,20,70,.45);
+}
+#toolbar h1{
+  font-family:'Libre Baskerville',serif;
+  font-size:14px;font-weight:700;color:#fff;
+  letter-spacing:.2px;flex:1;min-width:200px;
+}
+.tbtn{
+  display:flex;align-items:center;gap:5px;
+  background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.3);
+  color:#fff;padding:6px 13px;border-radius:5px;
+  font-family:'Cabin',sans-serif;font-size:11.5px;font-weight:600;
+  cursor:pointer;transition:all .18s;white-space:nowrap;
+}
+.tbtn:hover{background:rgba(255,255,255,.25);}
+.tbtn.primary{background:#0057B8;border-color:#0044A0;}
+.tbtn.primary:hover{background:#0046A0;}
+.tbtn:disabled{opacity:.45;cursor:not-allowed;}
+
+/* ══════════════════════════════════
+   BARRE SÉLECTEUR ERGONOMIQUE
+══════════════════════════════════ */
+#selbar{
+  background:#fff;border-bottom:3px solid var(--rep);
+  padding:10px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  position:sticky;top:48px;z-index:200;
+  box-shadow:0 2px 6px rgba(0,20,70,.07);
+}
+#selbar label{font-weight:700;color:var(--rep);font-size:12px;white-space:nowrap;}
+
+/* Conteneur du sélecteur custom */
+#selector-wrap{position:relative;flex:1;max-width:520px;}
+
+.qnav-btn.active {
+  outline: 2px solid #fff;
+  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+  filter: brightness(1.15);
+}
+
+.qnav-btn {
+  border: none;
+  padding: 2px 8px;          /* plus compact */
+  border-radius: 12px;       /* pill plus fin */
+  font-size: 11px;           /* texte réduit */
+  cursor: pointer;
+  margin: 2px 3px;           /* espace réduit */
+  color: white;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.2;          /* hauteur réduite */
+}
+
+/* Couleurs par région */
+.qnav-btn.Siège     { background: #003366; }
+.qnav-btn.DI        { background: #007bff; }
+.qnav-btn.Outremer  { background: #6f42c1; }
+.qnav-btn.SCN       { background: #198754; }
+
+/* État actif */
+.qnav-btn.active {
+  outline: 2px solid #fff;
+  box-shadow: 0 0 4px rgba(0,0,0,0.25);
+  filter: brightness(1.15);
+}
+
+
+
+/* Champ de recherche */
+#sel-input{
+  width:100%;
+  padding:8px 40px 8px 14px;
+  border:1.5px solid var(--bord);border-radius:6px;
+  font-family:'Cabin',sans-serif;font-size:13px;color:var(--gris1);
+  background:#fff;cursor:pointer;
+  transition:border-color .18s,box-shadow .18s;
+  outline:none;
+}
+#sel-input:focus,#sel-input.open{
+  border-color:var(--rep2);
+  box-shadow:0 0 0 3px rgba(19,81,168,.15);
+}
+/* Icône chevron */
+#sel-chevron{
+  position:absolute;right:11px;top:50%;transform:translateY(-50%);
+  pointer-events:none;color:var(--gris3);font-size:13px;
+  transition:transform .2s;
+}
+#sel-chevron.up{transform:translateY(-50%) rotate(180deg);}
+
+/* Dropdown */
+#sel-dropdown{
+  display:none;
+  position:absolute;top:calc(100% + 4px);left:0;right:0;
+  background:#fff;border:1.5px solid var(--rep2);border-radius:8px;
+  box-shadow:var(--shadow-lg);
+  max-height:400px;overflow:hidden;
+  z-index:500;
+  flex-direction:column;
+}
+#sel-dropdown.open{display:flex;}
+
+/* Barre de recherche dans le dropdown */
+#sel-search-wrap{
+  padding:10px 12px 6px;border-bottom:1px solid var(--bord);flex-shrink:0;
+}
+#sel-search{
+  width:100%;padding:7px 12px 7px 32px;
+  border:1.5px solid var(--bord);border-radius:5px;
+  font-family:'Cabin',sans-serif;font-size:12px;color:var(--gris1);
+  background:var(--gris4);outline:none;
+  transition:border-color .18s;
+}
+#sel-search:focus{border-color:var(--rep2);background:#fff;}
+.search-icon{
+  position:absolute;left:21px;top:50%;transform:translateY(-50%);
+  color:var(--gris3);font-size:13px;pointer-events:none;
+}
+#sel-search-wrap{position:relative;}
+
+/* Liste des options */
+#sel-list{overflow-y:auto;flex:1;}
+
+/* Groupe (type de structure) */
+.sel-group-header{
+  padding:6px 14px 4px;
+  font-size:10px;font-weight:700;color:var(--gris3);
+  letter-spacing:.8px;text-transform:uppercase;
+  background:var(--gris4);border-bottom:1px solid var(--bord);
+  position:sticky;top:0;z-index:1;
+}
+.sel-option{
+  padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:9px;
+  transition:background .12s;border-bottom:1px solid #f0f3f7;
+  font-size:12.5px;color:var(--gris1);
+}
+.sel-option:last-child{border-bottom:none;}
+.sel-option:hover{background:var(--rep-pale);}
+.sel-option.active{background:#dce8ff;font-weight:600;}
+.sel-option .opt-badge{
+  padding:2px 7px;border-radius:10px;font-size:9.5px;font-weight:700;
+  letter-spacing:.5px;text-transform:uppercase;flex-shrink:0;
+}
+.ob-SIEGE{background:#3D1F7A;color:#fff;}
+.ob-DI{background:var(--rep);color:#fff;}
+.ob-SCN{background:#1A6B3C;color:#fff;}
+.opt-name{flex:1;}
+.opt-region{font-size:11px;color:var(--gris3);flex-shrink:0;}
+.sel-no-result{
+  padding:20px;text-align:center;
+  color:var(--gris3);font-style:italic;font-size:12px;
+}
+
+/* Badge affiché dans la barre */
+#cur-badge{flex-shrink:0;}
+.badge{padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;}
+.b-SIEGE{background:#3D1F7A;color:#fff;}
+.b-DI{background:var(--rep);color:#fff;}
+.b-SCN{background:#1A6B3C;color:#fff;}
+.b-DR{background:#1351A8;color:#fff;}
+#cur-parent{font-size:11px;color:var(--gris3);font-style:italic;}
+
+/* Accès rapide — flex-wrap pour tenir sans ascenseur */
+#quick-nav{
+  background:#fff;border-bottom:1px solid var(--bord);
+  padding:6px 18px;display:flex;align-items:flex-start;
+  gap:5px 6px;flex-wrap:wrap;
+}
+#qnav-items{display:contents;}
+.qnav-label{font-size:10.5px;color:var(--gris3);flex-shrink:0;white-space:nowrap;align-self:center;margin-right:2px;}
+.qnav-sep{width:1px;height:16px;background:var(--bord);flex-shrink:0;align-self:center;}
+
+
+
+
+/* ══════════════════════════════════
+   MODAL EXPORT PDF
+══════════════════════════════════ */
+#pdf-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,20,60,.55);backdrop-filter:blur(3px);
+  z-index:1000;align-items:center;justify-content:center;
+}
+#pdf-overlay.open{display:flex;}
+#pdf-modal{
+  background:#fff;border-radius:12px;
+  width:580px;max-width:95vw;max-height:90vh;
+  overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,20,70,.35);
+  animation:modalIn .22s ease;
+}
+@keyframes modalIn{from{transform:translateY(16px);opacity:0;}to{transform:none;opacity:1;}}
+.modal-header{
+  background:var(--rep);color:#fff;
+  padding:16px 22px;border-radius:12px 12px 0 0;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.modal-header h2{font-size:15px;font-weight:700;font-family:'Libre Baskerville',serif;}
+.modal-close{
+  background:rgba(255,255,255,.15);border:none;color:#fff;
+  width:30px;height:30px;border-radius:50%;font-size:16px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .15s;
+}
+.modal-close:hover{background:rgba(255,255,255,.3);}
+.modal-body{padding:20px 22px;}
+.modal-section{margin-bottom:20px;}
+.modal-section-title{
+  font-size:11px;font-weight:700;color:var(--rep);
+  letter-spacing:.7px;text-transform:uppercase;
+  margin-bottom:10px;padding-bottom:5px;
+  border-bottom:2px solid var(--rep-pale);
+}
+
+/* Options de format */
+.format-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.format-card{
+  border:2px solid var(--bord);border-radius:8px;padding:12px 14px;
+  cursor:pointer;transition:all .15s;position:relative;
+}
+.format-card:hover{border-color:var(--rep2);background:var(--rep-pale);}
+.format-card.selected{border-color:var(--rep);background:var(--rep-pale);}
+.format-card input{position:absolute;opacity:0;}
+.format-title{font-weight:700;font-size:12.5px;color:var(--gris1);margin-bottom:3px;}
+.format-desc{font-size:11px;color:var(--gris2);}
+.format-check{
+  position:absolute;top:10px;right:10px;
+  width:18px;height:18px;border-radius:50%;border:2px solid var(--bord);
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;color:#fff;background:transparent;
+  transition:all .15s;
+}
+.format-card.selected .format-check{background:var(--rep);border-color:var(--rep);}
+
+/* Sélection des blocs */
+.blocs-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.bloc-check{
+  display:flex;align-items:center;gap:9px;
+  border:1.5px solid var(--bord);border-radius:7px;padding:9px 12px;
+  cursor:pointer;transition:all .15s;
+}
+.bloc-check:hover{border-color:var(--rep2);background:var(--rep-pale);}
+.bloc-check.checked{border-color:var(--rep);background:var(--rep-pale);}
+.bloc-check input{display:none;}
+.bloc-icon{font-size:16px;}
+.bloc-label{font-size:12px;font-weight:600;color:var(--gris1);}
+.bloc-cb{
+  margin-left:auto;width:18px;height:18px;border-radius:4px;
+  border:2px solid var(--bord);background:#fff;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:#fff;transition:all .15s;
+}
+.bloc-check.checked .bloc-cb{background:var(--rep);border-color:var(--rep);}
+.select-all-row{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:8px;
+}
+.select-all-row a{
+  font-size:11.5px;color:var(--rep2);cursor:pointer;text-decoration:underline;
+}
+
+/* Options supplémentaires */
+.opt-row{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 12px;border:1.5px solid var(--bord);border-radius:7px;
+  cursor:pointer;transition:all .15s;margin-bottom:7px;
+}
+.opt-row:hover{border-color:var(--rep2);background:var(--rep-pale);}
+.opt-row.checked{border-color:var(--rep);background:var(--rep-pale);}
+.opt-toggle{
+  width:32px;height:18px;background:var(--gris3);border-radius:9px;
+  position:relative;transition:background .2s;flex-shrink:0;
+}
+.opt-toggle::after{
+  content:'';position:absolute;top:2px;left:2px;
+  width:14px;height:14px;border-radius:50%;background:#fff;
+  transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);
+}
+.opt-row.checked .opt-toggle{background:var(--rep);}
+.opt-row.checked .opt-toggle::after{transform:translateX(14px);}
+.opt-label{font-size:12px;font-weight:600;color:var(--gris1);flex:1;}
+.opt-desc{font-size:10.5px;color:var(--gris2);}
+
+/* Multi-structures */
+.multi-structs{
+  max-height:160px;overflow-y:auto;border:1.5px solid var(--bord);
+  border-radius:7px;
+}
+.ms-item{
+  display:flex;align-items:center;gap:9px;
+  padding:7px 12px;border-bottom:1px solid var(--bord);cursor:pointer;
+  transition:background .12s;font-size:12px;
+}
+.ms-item:last-child{border-bottom:none;}
+.ms-item:hover{background:var(--rep-pale);}
+.ms-item.checked{background:#dce8ff;}
+.ms-cb{
+  width:16px;height:16px;border-radius:3px;border:2px solid var(--bord);
+  background:#fff;flex-shrink:0;display:flex;align-items:center;
+  justify-content:center;font-size:9px;color:#fff;transition:all .12s;
+}
+.ms-item.checked .ms-cb{background:var(--rep);border-color:var(--rep);}
+.ms-name{flex:1;}
+.ms-region{font-size:10.5px;color:var(--gris3);}
+
+.modal-footer{
+  padding:14px 22px 20px;border-top:1px solid var(--bord);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.btn-cancel{
+  background:#fff;border:1.5px solid var(--bord);color:var(--gris2);
+  padding:8px 18px;border-radius:6px;font-family:'Cabin',sans-serif;
+  font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;
+}
+.btn-cancel:hover{border-color:var(--gris2);background:var(--gris4);}
+.btn-export{
+  background:var(--rep);color:#fff;border:none;
+  padding:9px 22px;border-radius:6px;font-family:'Cabin',sans-serif;
+  font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;gap:7px;
+}
+.btn-export:hover{background:var(--rep2);}
+.btn-export:disabled{opacity:.5;cursor:not-allowed;}
+
+/* Barre de progression export */
+#export-progress{display:none;margin-top:12px;}
+.prog-bar-outer{height:6px;background:var(--gris4);border-radius:3px;overflow:hidden;}
+.prog-bar-fill{height:100%;background:var(--rep2);border-radius:3px;transition:width .3s;}
+.prog-msg{font-size:11px;color:var(--gris2);margin-top:5px;text-align:center;}
+
+/* ══════════════════════════════════
+   FICHE
+══════════════════════════════════ */
+#fiche{max-width:1120px;margin:16px auto;padding:0 16px 50px;}
+.fiche-header{
+  background:#fff;border:1px solid var(--bord);border-top:5px solid var(--rep);
+  border-radius:0 0 8px 8px;padding:20px 24px;
+  display:flex;align-items:flex-start;gap:22px;margin-bottom:14px;
+  box-shadow:var(--shadow);
+}
+.logo-box{
+  width:180px;height:221px;flex-shrink:0;border:2px dashed var(--bord);
+  border-radius:6px;background:var(--rep-pale);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow:hidden;color:var(--rep);font-size:11px;text-align:center;padding:8px;
+}
+.logo-box img{max-width:100%;max-height:100%;object-fit:contain;}
+.logo-box span{margin-top:6px;color:var(--gris3);}
+.hdr-info{flex:1;}
+.hdr-info h2{
+  font-family:'Libre Baskerville',serif;
+  font-size:22px;font-weight:700;color:var(--rep);
+  line-height:1.2;margin-bottom:4px;
+}
+.hdr-sous{font-size:13px;color:var(--gris2);margin-bottom:10px;}
+.hdr-meta{display:flex;gap:10px;flex-wrap:wrap;}
+.meta-pill{background:var(--gris4);border:1px solid var(--bord);padding:4px 12px;border-radius:20px;font-size:11.5px;}
+.meta-pill strong{color:var(--rep);}
+.hdr-date{font-size:10.5px;color:var(--gris3);margin-top:10px;font-style:italic;}
+.attn-box{
+  background:#FFFBF0;border:1.5px solid #D4A800;border-left:5px solid #C09000;
+  border-radius:6px;padding:14px 18px;margin-bottom:14px;box-shadow:var(--shadow);
+}
+.attn-title{font-size:11px;font-weight:700;color:#7A5800;letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.attn-text{font-size:12.5px;color:#4A3A00;line-height:1.6;}
+.attn-chantiers{margin-top:10px;display:flex;flex-wrap:wrap;gap:7px;}
+.chantier-pill{background:#FFF0A0;border:1px solid #C8A000;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;color:#5A3D00;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.full{grid-column:1/-1;}
+.section{background:#fff;border:1px solid var(--bord);border-radius:8px;overflow:hidden;box-shadow:var(--shadow);}
+.sec-hdr{background:var(--rep);color:#fff;padding:9px 16px;display:flex;align-items:center;gap:8px;}
+.sec-hdr .ico{font-size:15px;}
+.sec-hdr h3{font-size:12.5px;font-weight:700;letter-spacing:.3px;}
+.sec-body{padding:14px 16px;}
+.kpi-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.kpi{flex:1;min-width:90px;background:var(--gris4);border-radius:6px;padding:10px 12px;text-align:center;border-left:3px solid var(--rep2);}
+.kpi.rouge{border-left-color:var(--rouge);}
+.kpi.vert{border-left-color:var(--vert);}
+.kpi.orange{border-left-color:var(--orange);}
+.kpi.jaune{border-left-color:var(--jaune);}
+.kv{font-size:20px;font-weight:700;color:var(--rep);line-height:1;margin-bottom:3px;}
+.kpi.rouge .kv{color:var(--rouge);}
+.kpi.vert .kv{color:var(--vert);}
+.kpi.orange .kv{color:var(--orange);}
+.sub-title{font-size:11px;font-weight:700;color:var(--rep);letter-spacing:.5px;text-transform:uppercase;margin:12px 0 6px;border-bottom:1px solid var(--bord);padding-bottom:4px;}
+.prog-wrap{margin:6px 0;}
+.prog-label{display:flex;justify-content:space-between;font-size:10.5px;color:var(--gris2);margin-bottom:3px;}
+.prog-bar{height:9px;background:var(--gris4);border-radius:5px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:5px;transition:width .5s;}
+.pf-ok{background:var(--vert);}
+.pf-warn{background:var(--orange);}
+.pf-danger{background:var(--rouge);}
+.dt{width:100%;border-collapse:collapse;font-size:12px;}
+.dt th{background:var(--rep-pale);color:var(--rep);padding:6px 9px;text-align:left;font-weight:700;font-size:11px;border-bottom:2px solid var(--bord);white-space:nowrap;}
+.dt td{padding:6px 9px;border-bottom:1px solid var(--bord);vertical-align:middle;}
+.dt tr:last-child td{border-bottom:none;}
+.dt tr:hover td{background:#F5F8FF;}
+.tr{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.tc{text-align:center;}
+.tbold{font-weight:700;}
+.td-sub{font-size:10.5px;color:var(--gris3);}
+.occ-pub{background:#E6ECF8;color:var(--rep);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}
+.occ-bail{background:#FFF0E0;color:var(--orange);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}
+.vs-nat{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:600;}
+.vs-ok{background:#D4EDDA;color:var(--vert);}
+.vs-bad{background:#FADDDD;color:var(--rouge);}
+.bar-chart{display:flex;flex-direction:column;gap:7px;margin-top:8px;}
+.bar-row{display:flex;align-items:center;gap:8px;}
+.bar-year{width:42px;font-size:10.5px;color:var(--gris2);text-align:right;flex-shrink:0;}
+.bar-outer{flex:1;height:20px;background:var(--gris4);border-radius:4px;overflow:hidden;display:flex;}
+.bar-seg{height:100%;}
+.bs-transport{background:#1351A8;}
+.bs-heberg{background:#C05A00;}
+.bs-repas{background:#1A6B3C;}
+.bar-total{width:72px;font-size:11px;font-weight:700;color:var(--gris1);text-align:right;flex-shrink:0;}
+.legend{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;}
+.leg-item{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--gris2);}
+.leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+.repartition-wrap{margin-top:12px;}
+.repartition-titre{font-size:10px;font-weight:700;color:var(--rep);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--rep-pale);padding-bottom:4px;margin-bottom:6px;}
+.repartition-table{width:100%;border-collapse:collapse;font-size:11px;}
+.repartition-table th{background:var(--rep-pale);color:var(--rep);padding:4px 8px;text-align:left;font-size:10px;font-weight:700;border-bottom:1.5px solid var(--bord);}
+.repartition-table th.tr{text-align:right;}
+.repartition-table td{padding:4px 8px;border-bottom:1px solid var(--bord);}
+.repartition-table td.tr{text-align:right;font-variant-numeric:tabular-nums;}
+.repartition-table tr:last-child td{border-bottom:none;}
+.repartition-table tr.rep-total td{background:var(--rep-pale);font-weight:700;border-top:1.5px solid var(--bord);}
+.repartition-table tr:hover td{background:#F0F4FF;}
+.comment-zone{margin-top:12px;border-top:1px dashed var(--bord);padding-top:10px;}
+.comment-label{font-size:10px;font-weight:700;color:var(--gris3);letter-spacing:.6px;text-transform:uppercase;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between;}
+.comment-text{font-size:12px;color:var(--gris2);line-height:1.6;min-height:24px;font-style:italic;}
+.comment-empty{color:var(--gris3);font-style:italic;}
+.edit-btn{background:none;border:1px solid var(--bord);border-radius:4px;padding:2px 7px;font-size:11px;cursor:pointer;color:var(--gris3);transition:all .15s;}
+.edit-btn:hover{background:var(--rep-pale);border-color:var(--rep2);color:var(--rep);}
+.edit-zone{margin-top:6px;display:none;}
+.edit-zone.open{display:block;}
+.edit-textarea{width:100%;min-height:70px;padding:8px 10px;border:1.5px solid var(--rep2);border-radius:5px;font-family:'Cabin',sans-serif;font-size:12px;color:var(--gris1);resize:vertical;outline:none;background:#fff;line-height:1.6;box-sizing:border-box;}
+.edit-actions{display:flex;gap:6px;margin-top:6px;align-items:center;}
+.btn-save{background:var(--rep);color:#fff;border:none;padding:5px 14px;border-radius:4px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:'Cabin',sans-serif;}
+.btn-save:hover{background:var(--rep2);}
+.btn-save:disabled{opacity:.5;cursor:not-allowed;}
+.btn-cancel-edit{background:var(--gris4);color:var(--gris2);border:1px solid var(--bord);padding:5px 12px;border-radius:4px;font-size:11.5px;cursor:pointer;font-family:'Cabin',sans-serif;}
+.save-msg{font-size:11px;color:var(--vert);display:none;}
+.save-msg.show{display:block;}
+.attn-edit-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;cursor:pointer;margin-left:8px;}
+.attn-edit-btn:hover{background:rgba(255,255,255,.35);}
+.attn-edit-zone{margin-top:10px;display:none;}
+.attn-edit-zone.open{display:block;}
+.dr-toggle{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--rep2);cursor:pointer;margin-top:10px;padding:5px 8px;background:var(--rep-pale);border-radius:4px;user-select:none;}
+.dr-toggle:hover{background:#d4e0f5;}
+.dr-list{display:none;margin-top:8px;}
+.dr-list.open{display:block;}
+.dr-item{background:var(--gris4);border-left:3px solid var(--rep2);padding:8px 12px;margin-bottom:6px;border-radius:0 4px 4px 0;font-size:11.5px;}
+.dr-name{font-weight:700;color:var(--rep);margin-bottom:4px;}
+.no-data{text-align:center;padding:24px;color:var(--gris3);font-style:italic;font-size:12px;}
+#loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;gap:12px;color:var(--gris2);}
+.spin{width:34px;height:34px;border:3px solid var(--bord);border-top-color:var(--rep);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ══════════════════════════════════
+   INFORMATIQUE BUREAUTIQUE
+══════════════════════════════════ */
+
+.info-annees {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.info-annee-col {
+  background: var(--gris4);
+  border: 1px solid var(--bord);
+  border-radius: 6px;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.info-annee-hdr {
+  background: var(--rep-pale);
+  color: var(--rep);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--bord);
+  text-align: center;
+}
+
+.info-row-lbl,
+.info-annee-val {
+  padding: 6px 8px;
+  font-size: 11.5px;
+  border-bottom: 1px solid var(--bord);
+}
+
+.info-row-lbl {
+  font-weight: 600;
+  color: var(--gris2);
+}
+
+.info-annee-val {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.info-indicateurs {
+  display: flex;
+  gap: 14px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.info-kpi-card {
+  flex: 1;
+  min-width: 160px;
+  background: var(--gris4);
+  border-radius: 6px;
+  padding: 12px;
+  border-left: 3px solid var(--rep2);
+}
+
+.info-kpi-val {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--rep);
+  margin-bottom: 4px;
+}
+
+.info-kpi-val.rouge { color: var(--rouge); }
+.info-kpi-val.vert  { color: var(--vert); }
+
+.info-kpi-lbl {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gris2);
+}
+
+.info-ref {
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: var(--gris2);
+}
+
+.info-ref-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.info-ref-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.info-ref-dot.type { background: var(--rep); }   /* bleu = moyenne du type */
+.info-ref-dot.nat  { background: var(--vert); }  /* vert = moyenne nationale */
+
+
+
+/* print */
+@media print{
+  #toolbar,#selbar,#quick-nav,#pdf-overlay{display:none!important;}
+  body{background:#fff;font-size:11px;}
+  #fiche{margin:0;padding:8px;max-width:100%;}
+  .section{box-shadow:none;break-inside:avoid;}
+  @page{margin:12mm;size:A4;}
+}
+</style>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+</head>
+<body>
+
+<!-- ═══════════ TOOLBAR ═══════════ -->
+<div id="toolbar">
+  <h1>📊 Indicateurs de gestion — Direction Générale</h1>
+  <div style="display:flex;gap:7px;flex-wrap:wrap;">
+    <button class="tbtn" onclick="openDiag()" title="Diagnostic des tables Grist" style="background:rgba(255,200,0,.18);border-color:rgba(255,200,0,.4)">🔧 Diagnostic</button>
+    <button class="tbtn" id="btn-html" onclick="exportHTML()" disabled>💾 Export HTML</button>
+    <button class="tbtn" id="btn-print" onclick="window.print()" disabled>🖨️ Imprimer</button>
+    <button class="tbtn primary" id="btn-pdf" onclick="openPdfModal()" disabled>📄 Export PDF…</button>
+  </div>
+</div>
+
+<!-- ═══════════ SÉLECTEUR ERGONOMIQUE ═══════════ -->
+<div id="selbar">
+  <label>Structure :</label>
+  <div id="selector-wrap">
+    <input type="text" id="sel-input" placeholder="Choisir une structure…" readonly onclick="toggleDropdown()" autocomplete="off">
+    <span id="sel-chevron">▾</span>
+    <div id="sel-dropdown">
+      <div id="sel-search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="sel-search" placeholder="Rechercher par nom, région, responsable…" oninput="renderDropdownList(this.value)" onkeydown="navKeys(event)">
+      </div>
+      <div id="sel-list"></div>
+    </div>
+  </div>
+  <span id="cur-badge"></span>
+  <span id="cur-parent"></span>
+</div>
+
+<!-- ═══════════ SÉLECTEUR ANNÉE ═══════════ -->
+<div id="year-bar" style="display:none;background:#fff;border-bottom:1px solid var(--bord);padding:6px 18px;display:flex;align-items:center;gap:10px;">
+  <span style="font-size:10.5px;color:var(--gris3);flex-shrink:0;">Année :</span>
+  <div id="year-btns" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+</div>
+<!-- ═══════════ NAVIGATION RAPIDE ═══════════ -->
+<div id="quick-nav">
+  <span class="qnav-label">Accès rapide :</span>
+  <div id="qnav-items"></div>
+</div>
+
+<!-- ═══════════ FICHE ═══════════ -->
+<div id="fiche">
+  <div id="loading"><div class="spin"></div><span>Connexion à Grist…</span><button onclick="loadDemo()" id="btn-demo" style="display:none;margin-top:12px;padding:6px 16px;background:var(--gris4);border:1px solid var(--bord);border-radius:5px;cursor:pointer;font-size:12px;color:var(--gris2)">Utiliser les données de démonstration</button></div>
+  <div id="fiche-body" style="display:none;"></div>
+</div>
+
+<!-- ═══════════ MODAL EXPORT PDF ═══════════ -->
+<div id="pdf-overlay" onclick="closePdfModalOutside(event)">
+<div id="pdf-modal">
+  <div class="modal-header">
+    <h2>📄 Exporter en PDF</h2>
+    <button class="modal-close" onclick="closePdfModal()">✕</button>
+  </div>
+  <div class="modal-body">
+
+    <!-- Format -->
+    <div class="modal-section">
+      <div class="modal-section-title">Format de l'export</div>
+      <div class="format-grid">
+        <label class="format-card selected" id="fmt-single" onclick="setFormat('single')">
+          <div class="format-title">📄 Fiche courante</div>
+          <div class="format-desc">Export de la structure sélectionnée uniquement</div>
+          <div class="format-check">✓</div>
+        </label>
+        <label class="format-card" id="fmt-multi" onclick="setFormat('multi')">
+          <div class="format-title">📚 Multi-structures</div>
+          <div class="format-desc">Plusieurs fiches dans un seul PDF</div>
+          <div class="format-check">✓</div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Sélection multi-structures (masqué par défaut) -->
+    <div class="modal-section" id="multi-section" style="display:none;">
+      <div class="modal-section-title">Structures à inclure</div>
+      <div class="select-all-row">
+        <span style="font-size:11.5px;color:var(--gris2)" id="ms-count">0 structure(s) sélectionnée(s)</span>
+        <div style="display:flex;gap:8px;">
+          <a onclick="selectAllStructures(true)">Tout sélectionner</a>
+          <a onclick="selectAllStructures(false)">Tout désélectionner</a>
+        </div>
+      </div>
+      <div class="multi-structs" id="ms-list"></div>
+    </div>
+
+    <!-- Blocs à inclure -->
+    <div class="modal-section">
+      <div class="modal-section-title">Blocs d'indicateurs à inclure</div>
+      <div class="select-all-row">
+        <span style="font-size:11.5px;color:var(--gris2)">Cochez les sections à exporter</span>
+        <div style="display:flex;gap:8px;">
+          <a onclick="selectAllBlocs(true)">Tout sélectionner</a>
+          <a onclick="selectAllBlocs(false)">Tout désélectionner</a>
+        </div>
+      </div>
+      <div class="blocs-grid" id="blocs-grid">
+        <div class="bloc-check checked" data-bloc="header" onclick="toggleBloc(this)">
+          <span class="bloc-icon">🏷️</span>
+          <span class="bloc-label">En-tête &amp; points d'attention</span>
+          <div class="bloc-cb">✓</div>
+        </div>
+        <div class="bloc-check checked" data-bloc="contentieux" onclick="toggleBloc(this)">
+          <span class="bloc-icon">⚖️</span>
+          <span class="bloc-label">Contentieux</span>
+          <div class="bloc-cb">✓</div>
+        </div>
+        <div class="bloc-check checked" data-bloc="budget" onclick="toggleBloc(this)">
+          <span class="bloc-icon">💶</span>
+          <span class="bloc-label">Budget</span>
+          <div class="bloc-cb">✓</div>
+        </div>
+        <div class="bloc-check checked" data-bloc="rh" onclick="toggleBloc(this)">
+          <span class="bloc-icon">👥</span>
+          <span class="bloc-label">Situation RH</span>
+          <div class="bloc-cb">✓</div>
+        </div>
+        <div class="bloc-check checked" data-bloc="immobilier" onclick="toggleBloc(this)">
+          <span class="bloc-icon">🏛️</span>
+          <span class="bloc-label">Immobilier</span>
+          <div class="bloc-cb">✓</div>
+        </div>
+        <div class="bloc-check checked" data-bloc="vehicules" onclick="toggleBloc(this)">
+          <span class="bloc-icon">🚗</span>
+          <span class="bloc-label">Véhicules</span>
+          <div class="bloc-cb">✓</div>
+        </div>
+        <div class="bloc-check checked" data-bloc="fraisMission" onclick="toggleBloc(this)">
+          <span class="bloc-icon">✈️</span>
+          <span class="bloc-label">Frais de mission</span>
+          <div class="bloc-cb">✓</div>
+        </div>
+        <div class="bloc-check checked" data-bloc="commentaires" onclick="toggleBloc(this)">
+          <span class="bloc-icon">💬</span>
+          <span class="bloc-label">Commentaires</span>
+          <div class="bloc-cb">✓</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="modal-section">
+      <div class="modal-section-title">Options</div>
+      <div class="opt-row checked" id="opt-attn" onclick="toggleOpt(this)">
+        <div class="opt-toggle"></div>
+        <div>
+          <div class="opt-label">Points d'attention</div>
+          <div class="opt-desc">Inclure le cadre des chantiers structurants</div>
+        </div>
+      </div>
+      <div class="opt-row checked" id="opt-dr" onclick="toggleOpt(this)">
+        <div class="opt-toggle"></div>
+        <div>
+          <div class="opt-label">Détail Directions Régionales</div>
+          <div class="opt-desc">Déplier automatiquement les DR dans le PDF</div>
+        </div>
+      </div>
+      <div class="opt-row" id="opt-date" onclick="toggleOpt(this)">
+        <div class="opt-toggle"></div>
+        <div>
+          <div class="opt-label">Pied de page avec date</div>
+          <div class="opt-desc">Ajouter la date d'export sur chaque page</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barre de progression -->
+    <div id="export-progress">
+      <div class="prog-bar-outer"><div class="prog-bar-fill" id="prog-fill" style="width:0%"></div></div>
+      <div class="prog-msg" id="prog-msg">Préparation…</div>
+    </div>
+
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closePdfModal()">Annuler</button>
+    <button class="btn-export" id="btn-do-export" onclick="doExportPDF()">
+      <span>📥</span> <span id="btn-export-label">Générer le PDF</span>
+    </button>
+  </div>
+</div>
+</div>
+
+<script>
+/* ── Fonctions utilitaires globales — définies en premier ── */
+
+/* Retourne la liste triée des années disponibles dans toutes les tables avec annee */
+function getAnneesDisponibles(){
+  const sets=[];
+  ['budget','rh','contentieux','vehicules','fraisMission'].forEach(function(k){
+    (D[k]||[]).forEach(function(r){
+      const a=Number(r.Annee||r.annee);
+      if(a>2000) sets.push(a);
+    });
+  });
+  return [...new Set(sets)].sort(function(a,b){return b-a;}); // décroissant
+}
+
+/* Construit la barre des boutons d'année et retourne l'année sélectionnée */
+function buildYearBar(){
+  const annees=getAnneesDisponibles();
+  const bar=document.getElementById('year-btns');
+  const barWrap=document.getElementById('year-bar');
+  if(!bar||!annees.length){if(barWrap)barWrap.style.display='none';return;}
+  barWrap.style.display='flex';
+  // Sélectionner l'année la plus récente par défaut si pas encore définie
+  if(!_annee||!annees.includes(_annee)) _annee=annees[0];
+  bar.innerHTML=annees.map(function(a){
+    var active=a===_annee;
+    return'<button onclick="setAnnee('+a+')" style="padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid '+(active?'var(--rep)':'var(--bord)')+';background:'+(active?'var(--rep)':'var(--gris4)')+';color:'+(active?'#fff':'var(--gris2)')+';">'+a+'</button>';
+  }).join('');
+}
+
+/* Change l'année sélectionnée et re-render la fiche */
+function setAnnee(a){
+  _annee=a;
+  buildYearBar();
+  if(current) renderFiche(current);
+}
+
+/* Filtre les lignes d'une table par l'année sélectionnée
+   Si plusieurs années dispo pour cette structure, retourne celles de _annee
+   Si aucune donnée pour _annee, retourne les plus récentes */
+function filtreAnnee(rows, colonneAnnee){
+  if(!rows||!rows.length) return rows;
+  colonneAnnee=colonneAnnee||'Annee';
+  const avecAnnee=rows.filter(function(r){return Number(r[colonneAnnee])>0;});
+  if(!avecAnnee.length) return rows; // table sans colonne Annee → tout retourner
+  if(_annee){
+    const filtre=avecAnnee.filter(function(r){return Number(r[colonneAnnee])===_annee;});
+    if(filtre.length) return filtre;
+  }
+  // Fallback : année la plus récente disponible
+  const maxA=Math.max.apply(null,avecAnnee.map(function(r){return Number(r[colonneAnnee]);}));
+  return avecAnnee.filter(function(r){return Number(r[colonneAnnee])===maxA;});
+}
+
+/* Retourne l'année effectivement affichée pour un jeu de lignes */
+function anneeAffichee(rows, colonneAnnee){
+  colonneAnnee=colonneAnnee||'Annee';
+  if(!rows||!rows.length) return '';
+  const a=Number(rows[0][colonneAnnee]);
+  return a>2000?String(a):'';
+}
+
+/* ── Fonctions utilitaires globales — définies en premier ── */
+function n(v){ var x=parseFloat(v); return isNaN(x)?0:x; }
+/* Formate un âge décimal en "44 ans 3 mois" */
+function fmtAge(v){
+  var x=parseFloat(String(v).replace(',','.'));
+  if(isNaN(x)||x<=0) return '—';
+  var ans=Math.floor(x);
+  var mois=Math.round((x-ans)*12);
+  if(mois>=12){ans++;mois=0;}
+  return mois>0 ? ans+' ans '+mois+' mois' : ans+' ans';
+}
+/* Extrait un nombre depuis une valeur Moyennes qui peut être "26,9" ou "25,9 %" ou 71 */
+function nPct(v){ if(v==null) return 0; var s=String(v).replace(',','.').replace(/[^0-9.]/g,''); var x=parseFloat(s); return isNaN(x)?0:x; }
+
+/* Grist peut renvoyer les Choice comme ["L","valeur"] — on extrait la chaîne */
+function strVal(v){ if(Array.isArray(v)) return v[1]||''; return v==null?'':String(v); }
+function fmt(v){ return v!=null?Number(v).toLocaleString('fr-FR'):'—'; }
+function fmtD(v){ return v!=null?Number(v).toLocaleString('fr-FR',{maximumFractionDigits:1}):'—'; }
+
+/* ═══════════════════════════════════════════════════════
+   UTIL — Normalisation tableau
+════════════════════════════════════════════════════════ */
+
+function fArr(v){
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  return [v];
+}
+
+const LOGO_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg/250px-Logo_des_Douanes_Fran%C3%A7aises.svg.png';
+/* ═══════════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════════ */
+const CFG={
+  tables:{structures:'Structures',contentieux:'Contentieux',budget:'Budget',rh:'RH',immobilier:'Immobilier',vehicules:'Vehicules',fraisMission:'FraisMission',commentaires:'Commentaires',moyennes:'Moyennes',informatique:'Informatique'},
+  c:{
+    S:{id:'id',nom:'Nom',type:'Type',parent:'Parent',region:'Region',chef:'Chef',logo:'Logo',maj:'DateMAJ',sigle:'Sigle'},
+    CT:{struct:'Structure',nb:'NombreTotal',cannabis:'KgCannabis',cocaine:'KgCocaine',tabac:'KgTabac',annee:'Annee'},
+    B:{struct:'Structure',typeb:'TypeBudget',annee:'Annee',ae_n:'AE_Notifiees',ae_d:'AE_MisesADispo',ae_c:'AE_Consommees',cp_n:'CP_Notifiees',cp_d:'CP_MisesADispo',cp_c:'CP_Consommees'},
+    RH:{struct:'Structure',etpt_su:'ETPT_SU',etpt_agco:'ETPT_AGCO',etpt_tot:'ETPTtotal',cib:'EffectifsCibles',ms:'MasseSalariale',jf:'JoursFormationParAgent',abs:'AbsenteismeJours',age:'AgeMoyen',annee:'Annee'},
+    IM:{struct:'Structure',site:'NomSite',occ:'TypeOccupation',adr:'Adresse',m2:'M2Occupes',cout:'CoutGestionM2',loyer:'LoyerAnnuel'},
+    VH:{struct:'Structure',nb:'NbVehicules',vet_s:'TauxVetusteStructure',vpa_s:'VehiculesParAgent',annee:'Annee'},
+    // Moyennes nationales lues depuis la table Moyennes (formules Grist)
+    MO:{
+  vet_n:'TauxVetusteMoyenNational',
+  vpa_n:'VehiculesMoyenNational',
+  age_n:'AgeMoyenNational',
+  abs_n:'AbsenteismeMoyenNational',
+  jf_n:'JoursFormationMoyenNational',
+  cae_n:'ConsoAEMoyenNational',
+  ccp_n:'ConsoCPMoyenNational',
+  annee:'Annee',
+
+  // Moyennes informatique (calculées dynamiquement et stockées)
+  info_dep_di:'DepenseMoyenneDI',
+  info_dep_scn:'DepenseMoyenneSCN',
+  info_dep_om:'DepenseMoyenneOM',
+  info_tx_di:'TauxEquipMoyenDI',
+  info_tx_scn:'TauxEquipMoyenSCN',
+  info_tx_om:'TauxEquipMoyenOM',
+
+  // ⭐⭐ NOUVEAU : MOYENNE NATIONALE ⭐⭐
+  info_dep_nat: 'DepensesBureautiqueMoyenNational',
+  info_tx_nat: 'TauxEquipementMoyenNational'
+},
+
+    FM:{
+  struct:'Structure',
+  type:'TypeMission',
+  annee:'Annee',
+  mt:'MontantTotal',
+  tr:'MontantTransport',
+  hb:'MontantHebergement',
+  rp:'MontantRepas'
+}
+,
+    // Commentaires : Bloc peut valoir 'contentieux','budget','rh','immobilier',
+    //   'vehicules','fraisMission', 'pointsAttention' (texte libre) ou 'chantier' (une pillule par ligne)
+    CM:{struct:'Structure',bloc:'Bloc',txt:'Commentaire',maj:'DateMAJ'},
+    IT:{struct:'Structure',annee:'Annee',dep:'DepensesBureautique',pcp:'NbPCPortable',pcb:'NbPCBureau'},
+  }
+};
+
+/* ═══════════════════════════════════════════════════════
+   ÉTAT
+═══════════════════════════════════════════════════════ */
+let D={};
+let current=null;
+let _curId=0;   // id de la structure en cours de rendu
+let _annee=null;  // année sélectionnée (null = la plus récente disponible)
+let pdfFormat='single';
+let selectedStructsForPdf=new Set();
+let focusedOptIdx=-1;
+let filteredOptions=[];
+
+/* ═══════════════════════════════════════════════════════
+   GRIST — INITIALISATION
+   
+   Stratégie adaptée à grist.numerique.gouv.fr :
+   
+   1. grist.onRecords(tableId, cb) → reçoit la table source
+      complète à chaque modification. On l'utilise pour
+      la table Structures (table source du widget).
+      
+   2. Pour les autres tables : grist.docApi.fetchTable()
+      si disponible, sinon l'API REST Grist (fetch HTTP).
+      
+   3. grist.onRecords déclenche un rechargement complet
+      à chaque modification → les données sont toujours fraîches.
+═══════════════════════════════════════════════════════ */
+
+let _loading    = false;   // verrou contre appels simultanés
+let _loadTimer  = null;
+let _apiBaseUrl = '';      // base URL pour l'API REST de secours
+
+function initGrist() {
+
+  /* ── Hors Grist ── */
+  if (typeof grist === 'undefined') {
+    setStatus('Mode démonstration (widget ouvert hors Grist)', false);
+    setTimeout(loadDemo, 400);
+    return;
+  }
+
+  /* ── Trouver la base URL pour l'API REST (secours) ── */
+  try {
+    _apiBaseUrl = window.location.origin; // ex: https://grist.numerique.gouv.fr
+  } catch(e) {}
+
+  /* ── Timeout 25 s ── */
+  _loadTimer = setTimeout(() => {
+    if (D.structures && D.structures.length) return; // déjà chargé
+    setStatus(
+      'Grist ne répond pas.\n' +
+      'Vérifiez : Paramètres du widget → "Accès complet au document"\n' +
+      'puis rafraîchissez (F5)',
+      true
+    );
+  }, 25000);
+
+  /* ── Déclaration du widget ── */
+  try {
+    grist.ready({
+      requiredAccess: 'full',
+      // On déclare qu'on veut écouter toutes les tables, pas seulement la source
+      columns: []
+    });
+  } catch(e) {
+    try { grist.ready({ requiredAccess: 'full' }); } catch(e2) {}
+  }
+
+  setStatus('Connexion à Grist...', false);
+
+  /* ══════════════════════════════════════════════════════
+     MÉTHODE PRINCIPALE : grist.onRecords
+     Reçoit les données de la table source à chaque modif.
+     On l'utilise comme déclencheur ET comme source de données
+     pour la table Structures.
+  ══════════════════════════════════════════════════════ */
+  if (typeof grist.onRecords === 'function') {
+    grist.onRecords(async function(records, mappings) {
+      console.log('[Grist] onRecords:', records ? records.length : 0, 'lignes');
+      
+      /* Les records reçus sont la table source (Structures).
+         On les utilise directement — ce sont les vraies données Grist. */
+      if (records && records.length > 0) {
+        D.structures = records.map(function(r) { return normalizeRecord(r); });
+        console.log('[Grist] Structures via onRecords:', D.structures.length, 'lignes');
+        console.log('[Grist] Exemple:', JSON.stringify(D.structures[0]));
+      }
+
+      clearTimeout(_loadTimer);
+      await chargerAutresTables();
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════
+     FALLBACK : grist.onRecord (singulier)
+  ══════════════════════════════════════════════════════ */
+  if (typeof grist.onRecord === 'function') {
+    grist.onRecord(async function(record) {
+      if (D.structures && D.structures.length) return; // déjà chargé via onRecords
+      console.log('[Grist] onRecord déclenché');
+      clearTimeout(_loadTimer);
+      await chargerAutresTables();
+    });
+  }
+}
+
+/* ════════════════════════════════════════════════════
+   CHARGEMENT DES TABLES SECONDAIRES
+   (tout sauf Structures qui vient de onRecords)
+════════════════════════════════════════════════════ */
+async function chargerAutresTables() {
+  if (_loading) return;
+  _loading = true;
+  setStatus('Chargement des données...', false);
+
+  const autresTables = Object.entries(CFG.tables).filter(([k]) => k !== 'structures');
+
+  for (const [key, tableName] of autresTables) {
+    const data = await fetchTableGrist(tableName);
+    if (data !== null) {
+      D[key] = data;
+      console.log('[Grist] "' + tableName + '": ' + data.length + ' lignes' +
+        (data[0] ? ' | cols: ' + Object.keys(data[0]).join(', ') : ' (vide)'));
+    } else {
+      console.warn('[Grist] Table "' + tableName + '" inaccessible — données conservées');
+      D[key] = D[key] || [];
+    }
+  }
+
+  /* Si Structures n'a pas été chargée via onRecords, essayer fetchTable */
+  if (!D.structures || !D.structures.length) {
+    const data = await fetchTableGrist(CFG.tables.structures);
+    if (data && data.length) {
+      D.structures = data;
+      console.log('[Grist] Structures via fetchTable:', data.length, 'lignes');
+    }
+  }
+
+  _loading = false;
+  console.log('[Grist] Chargement terminé. Structures:', (D.structures||[]).length);
+  build();
+}
+
+/* ════════════════════════════════════════════════════
+   FETCH D'UNE TABLE — docApi puis API REST
+════════════════════════════════════════════════════ */
+async function fetchTableGrist(tableName) {
+  /* Tentative 1 : grist.docApi.fetchTable */
+  if (typeof grist !== 'undefined' &&
+      typeof grist.docApi !== 'undefined' &&
+      typeof grist.docApi.fetchTable === 'function') {
+    try {
+      const raw = await grist.docApi.fetchTable(tableName);
+      return toObjs(raw);
+    } catch(e) {
+      console.warn('[Grist] docApi.fetchTable("' + tableName + '") échoué:', e.message || e);
+    }
+  }
+
+  /* Tentative 2 : API REST Grist
+     URL : /api/docs/{docId}/tables/{tableId}/records
+     Nécessite que le widget soit dans le même domaine ou CORS permissif */
+  try {
+    const docId = await getDocId();
+    if (!docId) return null;
+    const url = _apiBaseUrl + '/api/docs/' + docId + '/tables/' + tableName + '/records';
+    console.log('[Grist] API REST:', url);
+    const resp = await fetch(url, { credentials: 'include' });
+    if (!resp.ok) {
+      console.warn('[Grist] API REST ' + tableName + ' → HTTP ' + resp.status);
+      return null;
+    }
+    const json = await resp.json();
+    /* Format API REST : { records: [{id, fields:{...}}, ...] } */
+    return (json.records || []).map(function(r) {
+      const obj = { id: r.id };
+      Object.entries(r.fields || {}).forEach(function([k, v]) { obj[k] = derefId(v); });
+      return obj;
+    });
+  } catch(e) {
+    console.warn('[Grist] API REST "' + tableName + '" échoué:', e.message || e);
+  }
+
+  return null;
+}
+
+/* Récupère l'ID du document Grist depuis l'URL de la page */
+async function getDocId() {
+  try {
+    /* Depuis l'iframe, window.parent.location peut être bloqué par CSP.
+       On extrait l'ID depuis grist si possible. */
+    if (typeof grist !== 'undefined' && grist.docId) return grist.docId;
+    if (typeof grist !== 'undefined' && grist.getDocName) return await grist.getDocName();
+    /* Fallback : extraire de l'URL parente */
+    const m = document.referrer.match(/\/([a-zA-Z0-9]{16,})\//);
+    return m ? m[1] : null;
+  } catch(e) { return null; }
+}
+
+/* ════════════════════════════════════════════════════
+   CONVERSION ET NORMALISATION
+════════════════════════════════════════════════════ */
+
+/* Grist columnar format → array of objects */
+function toObjs(rec) {
+  const keys = Object.keys(rec);
+  if (!keys.length) return [];
+  return (rec.id || []).map(function(id, i) {
+    const obj = { id: id };
+    keys.forEach(function(k) {
+      if (k !== 'id') obj[k] = derefId(rec[k][i]);
+    });
+    return obj;
+  });
+}
+
+/* Normalise un record reçu via onRecords (format peut varier) */
+function normalizeRecord(r) {
+  if (!r || typeof r !== 'object') return r;
+  const obj = {};
+  Object.entries(r).forEach(function([k, v]) { obj[k] = derefId(v); });
+  return obj;
+}
+
+/* Dé-référence les colonnes Reference Grist (3 formats possibles) */
+function derefId(v) {
+  if (v === null || v === undefined)        return v;
+  if (Array.isArray(v) && v[0] === 'r')    return v[1];      // ["r", rowId]
+  if (typeof v === 'object' && 'id' in v)  return v.id;      // {id:N, ...}
+  return v;
+}
+
+/* Affiche un message sous le spinner */
+function setStatus(msg, isError) {
+  let el = document.getElementById('status-msg');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'status-msg';
+    el.style.cssText =
+      'font-size:11.5px;margin-top:10px;max-width:480px;' +
+      'text-align:center;line-height:1.7;padding:0 16px;white-space:pre-line;';
+    const btn = document.getElementById('btn-demo');
+    const loading = document.getElementById('loading');
+    if (loading && btn) loading.insertBefore(el, btn);
+    else if (loading) loading.appendChild(el);
+  }
+  el.style.color = isError ? '#B52020' : '#4A5A6A';
+  el.textContent = msg;
+  if (isError) {
+    const btn = document.getElementById('btn-demo');
+    if (btn) btn.style.display = 'inline-block';
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   DONNÉES DÉMO
+═══════════════════════════════════════════════════════ */
+function loadDemo(){
+  D={
+    structures:[
+      {id:1,Nom:'Direction Générale — Siège',Type:'SIEGE',Parent:null,Region:'Île-de-France',Chef:'M. Jean DUPONT',Logo:'',DateMAJ:'2025-04-01',Sigle:'Siège DG'},
+      {id:2,Nom:'Direction Interrégionale Nord',Type:'DI',Parent:null,Region:'Hauts-de-France',Chef:'Mme Claire MARTIN',Logo:'',DateMAJ:'2025-04-01',Sigle:'DI Nord'},
+      {id:3,Nom:'Direction Régionale Nord-Est',Type:'DR',Parent:2,Region:'Grand Est',Chef:'M. Pierre LEFEBVRE',Logo:'',DateMAJ:'2025-04-01'},
+      {id:4,Nom:'Direction Régionale Nord-Ouest',Type:'DR',Parent:2,Region:'Normandie',Chef:'Mme Anne BERNARD',Logo:'',DateMAJ:'2025-04-01'},
+      {id:5,Nom:'Direction Interrégionale Sud',Type:'DI',Parent:null,Region:'Occitanie',Chef:'M. Paul ROUX',Logo:'',DateMAJ:'2025-04-01',Sigle:'DI Sud'},
+      {id:6,Nom:'Direction Régionale Sud-Est',Type:'DR',Parent:5,Region:'PACA',Chef:'Mme Sophie GIRARD',Logo:'',DateMAJ:'2025-04-01'},
+      {id:7,Nom:'Direction Interrégionale Est',Type:'DI',Parent:null,Region:'Grand Est',Chef:'M. Henri BLANC',Logo:'',DateMAJ:'2025-04-01',Sigle:'DI Est'},
+      {id:8,Nom:'Direction Régionale Alsace',Type:'DR',Parent:7,Region:'Alsace',Chef:'Mme Lucie WAGNER',Logo:'',DateMAJ:'2025-04-01'},
+      {id:9,Nom:'Service à Compétence Nationale A',Type:'SCN',Parent:null,Region:'Île-de-France',Chef:'M. Luc MOREAU',Logo:'',DateMAJ:'2025-04-01',Sigle:'SCN-A'},
+      {id:10,Nom:'Service à Compétence Nationale B',Type:'SCN',Parent:null,Region:'Rhône-Alpes',Chef:'Mme Isabelle PETIT',Logo:'',DateMAJ:'2025-04-01',Sigle:'SCN-B'},
+      {id:11,Nom:'Service à Compétence Nationale C',Type:'SCN',Parent:null,Region:'Bretagne',Chef:'M. Yann THOMAS',Logo:'',DateMAJ:'2025-04-01',Sigle:'SCN-C'},
+    ],
+    contentieux:[
+      {id:1,Structure:1,NombreTotal:12,KgCannabis:450.5,KgCocaine:120.0,KgTabac:8500.0},
+      {id:2,Structure:2,NombreTotal:8, KgCannabis:210.0,KgCocaine:45.5, KgTabac:3200.0},
+      {id:3,Structure:3,NombreTotal:3, KgCannabis:80.0, KgCocaine:12.0, KgTabac:1100.0},
+      {id:4,Structure:5,NombreTotal:6, KgCannabis:320.0,KgCocaine:88.0, KgTabac:5600.0},
+      {id:5,Structure:9,NombreTotal:2, KgCannabis:40.0, KgCocaine:8.5,  KgTabac:600.0},
+      {id:6,Structure:10,NombreTotal:1,KgCannabis:15.0, KgCocaine:3.0,  KgTabac:250.0},
+    ],
+    budget:[
+      {id:1, Structure:1,TypeBudget:'Fonctionnement',Annee:2025,AE_Notifiees:2500000,AE_MisesADispo:2500000,AE_Consommees:1820000,CP_Notifiees:2500000,CP_MisesADispo:2500000,CP_Consommees:1750000},
+      {id:2, Structure:1,TypeBudget:'Investissement', Annee:2025,AE_Notifiees:800000, AE_MisesADispo:800000, AE_Consommees:420000, CP_Notifiees:800000, CP_MisesADispo:800000, CP_Consommees:390000},
+      {id:3, Structure:1,TypeBudget:'Intervention',   Annee:2025,AE_Notifiees:1200000,AE_MisesADispo:1200000,AE_Consommees:980000, CP_Notifiees:1200000,CP_MisesADispo:1200000,CP_Consommees:960000},
+      {id:4, Structure:2,TypeBudget:'Fonctionnement',Annee:2025,AE_Notifiees:1800000,AE_MisesADispo:1750000,AE_Consommees:1540000,CP_Notifiees:1800000,CP_MisesADispo:1750000,CP_Consommees:1480000},
+      {id:5, Structure:2,TypeBudget:'Investissement', Annee:2025,AE_Notifiees:500000, AE_MisesADispo:500000, AE_Consommees:380000, CP_Notifiees:500000, CP_MisesADispo:500000, CP_Consommees:350000},
+      {id:6, Structure:5,TypeBudget:'Fonctionnement',Annee:2025,AE_Notifiees:1600000,AE_MisesADispo:1600000,AE_Consommees:980000, CP_Notifiees:1600000,CP_MisesADispo:1600000,CP_Consommees:950000},
+    ],
+    rh:[
+      {id:1,Structure:1,ETPT_SU:80,ETPT_AGCO:65,ETPTtotal:145,EffectifsCibles:150,MasseSalariale:9200000,JoursFormationParAgent:3.2,AbsenteismeJours:820,AgeMoyen:44.1,Annee:2026},
+      {id:2,Structure:2,ETPT_SU:60,ETPT_AGCO:52,ETPTtotal:112,EffectifsCibles:120,MasseSalariale:7100000,JoursFormationParAgent:2.8,AbsenteismeJours:640,AgeMoyen:46.3,Annee:2026},
+      {id:3,Structure:3,ETPT_SU:30,ETPT_AGCO:24,ETPTtotal:54, EffectifsCibles:58, MasseSalariale:3200000,JoursFormationParAgent:3.5,AbsenteismeJours:310,AgeMoyen:43.7,Annee:2026},
+      {id:4,Structure:5,ETPT_SU:54,ETPT_AGCO:44,ETPTtotal:98, EffectifsCibles:105,MasseSalariale:6200000,JoursFormationParAgent:4.1,AbsenteismeJours:520,AgeMoyen:42.9,Annee:2026},
+      {id:5,Structure:9,ETPT_SU:37,ETPT_AGCO:30,ETPTtotal:67, EffectifsCibles:70, MasseSalariale:4500000,JoursFormationParAgent:5.2,AbsenteismeJours:380,AgeMoyen:39.8,Annee:2026},
+      {id:6,Structure:10,ETPT_SU:28,ETPT_AGCO:23,ETPTtotal:51,EffectifsCibles:55, MasseSalariale:3400000,JoursFormationParAgent:4.8,AbsenteismeJours:290,AgeMoyen:40.3,Annee:2026},
+    ],
+    immobilier:[
+      {id:1,Structure:1,NomSite:'Tour Centrale — Siège',TypeOccupation:'Domaine public',Adresse:'33 avenue du Maine, 75015 Paris',M2Occupes:4200,CoutGestionM2:380,LoyerAnnuel:null},
+      {id:2,Structure:2,NomSite:'Cité administrative de Lille',TypeOccupation:'Domaine public',Adresse:'143 bis rue Solférino, 59000 Lille',M2Occupes:2800,CoutGestionM2:210,LoyerAnnuel:null},
+      {id:3,Structure:2,NomSite:'Antenne Amiens',TypeOccupation:'Bail privé',Adresse:'12 rue de Noyon, 80000 Amiens',M2Occupes:450,CoutGestionM2:195,LoyerAnnuel:68000},
+      {id:4,Structure:5,NomSite:'Centre administratif Toulouse',TypeOccupation:'Domaine public',Adresse:'1 place Alphonse-Jourdain, 31000 Toulouse',M2Occupes:2400,CoutGestionM2:220,LoyerAnnuel:null},
+      {id:5,Structure:9,NomSite:'Bâtiment SCN-A',TypeOccupation:'Domaine public',Adresse:'7 rue de Varenne, 75007 Paris',M2Occupes:1800,CoutGestionM2:420,LoyerAnnuel:null},
+    ],
+    vehicules:[
+      {id:1,Structure:1,NbVehicules:24,TauxVetusteStructure:28,TauxVetusteMoyenNational:32,VehiculesParAgent:0.17,VehiculesMoyenNational:0.28},
+      {id:2,Structure:2,NbVehicules:38,TauxVetusteStructure:35,TauxVetusteMoyenNational:32,VehiculesParAgent:0.34,VehiculesMoyenNational:0.28},
+      {id:3,Structure:3,NbVehicules:18,TauxVetusteStructure:42,TauxVetusteMoyenNational:32,VehiculesParAgent:0.33,VehiculesMoyenNational:0.28},
+      {id:4,Structure:5,NbVehicules:32,TauxVetusteStructure:22,TauxVetusteMoyenNational:32,VehiculesParAgent:0.33,VehiculesMoyenNational:0.28},
+      {id:5,Structure:9,NbVehicules:8, TauxVetusteStructure:15,TauxVetusteMoyenNational:32,VehiculesParAgent:0.12,VehiculesMoyenNational:0.28},
+    ],
+    fraisMission:[
+      {id:1, Structure:1,TypeMission:'Formation',     Annee:2022,MontantTotal:48000, PartTransport:60,PartHebergement:25,PartRepas:15},
+      {id:2, Structure:1,TypeMission:'Formation',     Annee:2023,MontantTotal:52000, PartTransport:58,PartHebergement:27,PartRepas:15},
+      {id:3, Structure:1,TypeMission:'Formation',     Annee:2024,MontantTotal:49000, PartTransport:59,PartHebergement:26,PartRepas:15},
+      {id:4, Structure:1,TypeMission:'Formation',     Annee:2025,MontantTotal:15000, PartTransport:57,PartHebergement:28,PartRepas:15},
+      {id:5, Structure:1,TypeMission:'AutresMissions',Annee:2022,MontantTotal:137000,PartTransport:53,PartHebergement:32,PartRepas:15},
+      {id:6, Structure:1,TypeMission:'AutresMissions',Annee:2023,MontantTotal:158000,PartTransport:51,PartHebergement:33,PartRepas:16},
+      {id:7, Structure:1,TypeMission:'AutresMissions',Annee:2024,MontantTotal:149000,PartTransport:52,PartHebergement:32,PartRepas:16},
+      {id:8, Structure:1,TypeMission:'AutresMissions',Annee:2025,MontantTotal:47000, PartTransport:50,PartHebergement:33,PartRepas:17},
+      {id:9, Structure:2,TypeMission:'Formation',     Annee:2022,MontantTotal:35000, PartTransport:55,PartHebergement:28,PartRepas:17},
+      {id:10,Structure:2,TypeMission:'AutresMissions',Annee:2022,MontantTotal:107000,PartTransport:47,PartHebergement:35,PartRepas:18},
+    ],
+    informatique:[
+      // Format long : une ligne par structure × année
+      {id:1, Structure:1, Annee:2022, DepensesBureautique:280000, NbPCPortable:120, NbPCBureau:45},
+      {id:2, Structure:1, Annee:2023, DepensesBureautique:295000, NbPCPortable:125, NbPCBureau:40},
+      {id:3, Structure:1, Annee:2024, DepensesBureautique:310000, NbPCPortable:132, NbPCBureau:38},
+      {id:4, Structure:1, Annee:2025, DepensesBureautique:325000, NbPCPortable:138, NbPCBureau:35},
+      {id:5, Structure:2, Annee:2022, DepensesBureautique:210000, NbPCPortable:88,  NbPCBureau:32},
+      {id:6, Structure:2, Annee:2023, DepensesBureautique:218000, NbPCPortable:92,  NbPCBureau:30},
+      {id:7, Structure:2, Annee:2024, DepensesBureautique:225000, NbPCPortable:96,  NbPCBureau:28},
+      {id:8, Structure:2, Annee:2025, DepensesBureautique:235000, NbPCPortable:100, NbPCBureau:26},
+    ],
+    moyennes:[
+      // Une seule ligne — les formules Grist calculent automatiquement
+      {id:1,TauxVetusteMoyenNational:26.9,VehiculesMoyenNational:'25,9 %',AgeMoyenNational:43.2,AbsenteismeMoyenNational:431.6,JoursFormationMoyenNational:3.7,ConsoAEMoyenNational:'71 %',ConsoCPMoyenNational:'69 %',Annee:2026},
+    ],
+    commentaires:[
+      // Commentaires par bloc indicateur
+      {id:1, Structure:1,Bloc:'contentieux',  Commentaire:'RAS pour ce trimestre. Surveillance du dossier TA Paris.'},
+      {id:2, Structure:1,Bloc:'budget',       Commentaire:'Sous-consommation CP investissement due au décalage du marché travaux.'},
+      {id:3, Structure:1,Bloc:'rh',           Commentaire:'Poste DSI vacant depuis mars. Recrutement en cours.'},
+      {id:4, Structure:2,Bloc:'immobilier',   Commentaire:'Bail Amiens : demande de renégociation du loyer engagée.'},
+      // Bloc 'pointsAttention' : UNE ligne par structure = texte de synthèse
+      {id:5, Structure:1,Bloc:'pointsAttention',Commentaire:"Taux d'absentéisme en hausse de 8% sur le 1er trimestre. Sous-consommation CP investissement à surveiller."},
+      {id:6, Structure:2,Bloc:'pointsAttention',Commentaire:'Effectifs en dessous de la cible — 8 postes vacants. Vétusté du parc à traiter.'},
+      // Bloc 'chantier' : UNE ligne par chantier = une pillule (autant que souhaité)
+      {id:7, Structure:1,Bloc:'chantier',Commentaire:'Schéma directeur immobilier 2025-2030'},
+      {id:8, Structure:1,Bloc:'chantier',Commentaire:'Plan de GPEEC interministériel'},
+      {id:9, Structure:1,Bloc:'chantier',Commentaire:'Déploiement du nouveau SI RH'},
+      {id:10,Structure:1,Bloc:'chantier',Commentaire:'Audit organisationnel Q3'},
+      {id:11,Structure:2,Bloc:'chantier',Commentaire:'Plan de recrutement prioritaire T2'},
+      {id:12,Structure:2,Bloc:'chantier',Commentaire:'Renouvellement parc véhicules (2 VL)'},
+      {id:13,Structure:2,Bloc:'chantier',Commentaire:'Renégociation bail Amiens'},
+    ],
+
+  };
+  build();
+}
+
+/* ═══════════════════════════════════════════════════════
+   BUILD — SÉLECTEUR ERGONOMIQUE
+═══════════════════════════════════════════════════════ */
+function build(){
+  document.getElementById('loading').style.display='none';
+  buildDropdown();
+  _fBySigle=null; _fById=null; // reconstruire index
+  buildQuickNav();
+  buildYearBar();
+  buildPdfMultiList();
+  // Auto-sélection première structure
+  const S=D.structures||[];
+  if(!S.length){
+    document.getElementById('loading').style.display='flex';
+    setStatus('⚠️ La table "Structures" est vide ou introuvable. Vérifiez que la table existe dans Grist et que son nom correspond exactement à "'+CFG.tables.structures+'" (sensible à la casse).', true);
+    return;
+  }
+  const first=S.find(s=>['SIEGE','Siège'].includes(strVal(s[CFG.c.S.type])))||S.find(s=>strVal(s[CFG.c.S.type])==='DI')||S[0];
+  if(first) selectStructure(first.id);
+}
+/* ═══════════════════════════════════════════════════════
+   INDEX & HIÉRARCHIE STRUCTURES — VERSION ORIGINALE
+═══════════════════════════════════════════════════════ */
+
+var _fBySigle = null;
+var _fById = null;
+
+const HIER_FICHE = {
+  TYPES_PARENT: new Set(['DI','SCN','Siège','siège','SIEGE']),
+  TYPES_AVEC_FILLES: new Set(['DI','SCN','Siège','siège','SIEGE','DR']),
+};
+
+function fBuildIdx(){
+  _fBySigle = {};
+  _fById = {};
+
+  (D.structures || []).forEach(function(s){
+    _fById[s.id] = s;
+
+    var sg = strVal(s[CFG.c.S.sigle] || '').trim();
+    if (sg) _fBySigle[sg] = s;
+  });
+}
+
+function fParentOf(s){
+  if (!_fBySigle) fBuildIdx();
+
+  var raw = strVal(s[CFG.c.S.parent] || '').trim();
+  if (!raw) return null;
+
+  var asId = parseInt(raw);
+  if (!isNaN(asId) && _fById[asId]) return _fById[asId];
+
+  return _fBySigle[raw] || null;
+}
+
+function fEnfantsDe(s){
+  if (!_fBySigle) fBuildIdx();
+
+  return (D.structures || []).filter(function(r){
+    var p = fParentOf(r);
+    return p && p.id === s.id;
+  });
+}
+
+function fEnfantsDR(s){
+  return fEnfantsDe(s).filter(function(r){
+    return ['DR','Autre'].includes(strVal(r[CFG.c.S.type] || ''));
+  });
+}
+
+function fDescendants(s){
+  var res = [];
+  fEnfantsDe(s).forEach(function(e){
+    res.push(e);
+    fDescendants(e).forEach(function(d){ res.push(d); });
+  });
+  return res;
+}
+
+function fConsoVal(s, dataArr, colStruct, getVal){
+  var all = [s].concat(fDescendants(s));
+  return all.reduce(function(tot, d){
+    var row = dataArr.find(function(r){ return n(r[colStruct]) === d.id; });
+    return tot + (row ? getVal(row) : 0);
+  }, 0);
+}
+
+function fHasFilles(s, dataArr, colStruct){
+  return fEnfantsDe(s).some(function(e){
+    return dataArr.some(function(r){ return n(r[colStruct]) === e.id; });
+  });
+}
+
+
+
+
+function selectorStructures(){
+  if(!_fBySigle) fBuildIdx();
+  const TYPES_OK=new Set(['Siège','SIEGE','siège','DI','SCN','DR']);
+  return (D.structures||[]).filter(function(s){
+    return TYPES_OK.has(strVal(s[CFG.c.S.type]));
+  });
+}
+
+function buildDropdown(){
+  renderDropdownList('');
+  // Fermer au clic extérieur
+  document.addEventListener('click',e=>{
+    if(!document.getElementById('selector-wrap').contains(e.target)) closeDropdown();
+  });
+}
+
+/* ═══════════════════════════════════════════════════════
+   Q‑NAV — SÉLECTEUR RAPIDE (SIGLE UNIQUEMENT)
+═══════════════════════════════════════════════════════ */
+
+function buildQuickNav(){
+  const cont = document.getElementById('qnav');
+  if (!cont) return;
+
+  const S = D.structures || [];
+
+  const ordreRegion = { "Siège": 1, "DI": 2, "Outremer": 3, "SCN": 4 };
+
+  const structsTries = S.slice().sort((a, b) => {
+    const rA = ordreRegion[a[CFG.c.S.region]] || 99;
+    const rB = ordreRegion[b[CFG.c.S.region]] || 99;
+    if (rA !== rB) return rA - rB;
+
+    const sA = (a[CFG.c.S.sigle] || "").toUpperCase();
+    const sB = (b[CFG.c.S.sigle] || "").toUpperCase();
+    return sA.localeCompare(sB);
+  });
+
+  let html = '';
+
+  structsTries.forEach(s => {
+    const sigle = s[CFG.c.S.sigle] || '';
+    html += `
+      <button class="qnav-btn" data-id="${s.id}"
+              onclick="selectStructure(${s.id})">
+        ${sigle}
+      </button>`;
+  });
+
+  cont.innerHTML = html;
+}
+
+
+
+function renderDropdownList(query){
+  const list = document.getElementById('sel-list');
+  const structs = selectorStructures();
+  const q = query.toLowerCase().trim();
+
+  const ordreRegion = { "Siège": 1, "DI": 2, "Outremer": 3, "SCN": 4 };
+
+  const structsTries = structs.slice().sort((a, b) => {
+    const rA = ordreRegion[a[CFG.c.S.region]] || 99;
+    const rB = ordreRegion[b[CFG.c.S.region]] || 99;
+    if (rA !== rB) return rA - rB;
+
+    const sA = (a[CFG.c.S.sigle] || "").toUpperCase();
+    const sB = (b[CFG.c.S.sigle] || "").toUpperCase();
+    return sA.localeCompare(sB);
+  });
+
+  filteredOptions = [];
+
+  const groups = { "Siège": [], "DI": [], "Outremer": [], "SCN": [] };
+  const gLabels = {
+    "Siège": "Siège DG",
+    "DI": "Directions Interrégionales",
+    "Outremer": "Outremer",
+    "SCN": "Services à Compétence Nationale"
+  };
+
+  structsTries.forEach(s => {
+    const sigle = (s[CFG.c.S.sigle] || '').toLowerCase();
+    const nom = (s[CFG.c.S.nom] || '').toLowerCase();
+    const region = (s[CFG.c.S.region] || '').toLowerCase();
+    const chef = (s[CFG.c.S.chef] || '').toLowerCase();
+
+    if (!q || sigle.includes(q) || nom.includes(q) || region.includes(q) || chef.includes(q)) {
+      groups[s[CFG.c.S.region]]?.push(s);
+      filteredOptions.push(s);
+    }
+  });
+
+  let html = '';
+
+  ["Siège","DI","Outremer","SCN"].forEach(region => {
+    if (!groups[region]?.length) return;
+
+    html += `<div class="sel-group-header">${gLabels[region]}</div>`;
+
+    groups[region].forEach(s => {
+      const active = current && current.id === s.id ? ' active' : '';
+      const sigle = s[CFG.c.S.sigle] || '';
+      const nom = s[CFG.c.S.nom] || '';
+      const type = s[CFG.c.S.type];
+
+      html += `
+        <div class="sel-option${active}" data-id="${s.id}" onclick="selectStructure(${s.id})">
+          <span class="badge b-${type}">${type}</span>
+          <span class="opt-sigle">${sigle}</span>
+          <span class="opt-name">${nom}</span>
+        </div>`;
+    });
+  });
+
+  if (!filteredOptions.length) {
+    html = `<div class="sel-no-result">Aucune structure trouvée pour « ${query} »</div>`;
+  }
+
+  list.innerHTML = html;
+  focusedOptIdx = -1;
+}
+
+/* ═══════════════════════════════════════════════════════
+   UTILITAIRES DROPDOWN — OUVERTURE, FERMETURE, NAVIGATION
+═══════════════════════════════════════════════════════ */
+
+function toggleDropdown(){
+  const dd = document.getElementById('sel-dropdown');
+  const chev = document.getElementById('sel-chevron');
+  const inp = document.getElementById('sel-input');
+
+  if (dd.classList.contains('open')) {
+    closeDropdown();
+  } else {
+    dd.classList.add('open');
+    chev.classList.add('up');
+    inp.classList.add('open');
+
+    const search = document.getElementById('sel-search');
+    search.value = '';
+    renderDropdownList('');
+
+    setTimeout(() => search.focus(), 50);
+  }
+}
+
+function closeDropdown(){
+  document.getElementById('sel-dropdown').classList.remove('open');
+  document.getElementById('sel-chevron').classList.remove('up');
+  document.getElementById('sel-input').classList.remove('open');
+}
+
+function highlightText(text, query){
+  if (!query) return text;
+  const q = query.toLowerCase();
+  const idx = text.toLowerCase().indexOf(q);
+  if (idx < 0) return text;
+
+  return (
+    text.substring(0, idx) +
+    '<span class="hl">' +
+    text.substring(idx, idx + q.length) +
+    '</span>' +
+    text.substring(idx + q.length)
+  );
+}
+
+function navKeys(e){
+  if (!filteredOptions.length) return;
+
+  if (e.key === 'ArrowDown'){
+    e.preventDefault();
+    focusedOptIdx = (focusedOptIdx + 1) % filteredOptions.length;
+  }
+  else if (e.key === 'ArrowUp'){
+    e.preventDefault();
+    focusedOptIdx = (focusedOptIdx - 1 + filteredOptions.length) % filteredOptions.length;
+  }
+  else if (e.key === 'Enter'){
+    e.preventDefault();
+    if (focusedOptIdx >= 0){
+      selectStructure(filteredOptions[focusedOptIdx].id);
+    }
+    return;
+  }
+  else {
+    return;
+  }
+
+  const opts = document.querySelectorAll('.sel-option');
+  opts.forEach(o => o.classList.remove('focused'));
+
+  if (focusedOptIdx >= 0){
+    const opt = opts[focusedOptIdx];
+    opt.classList.add('focused');
+    opt.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+
+function selectStructure(id){
+  const S = D.structures || [];
+  current = S.find(s => s.id == id);
+  if (!current) return;
+
+  const sigle = current[CFG.c.S.sigle] || '';
+  const nom = current[CFG.c.S.nom] || '';
+
+  document.getElementById('sel-input').value = `${sigle} — ${nom}`;
+
+  closeDropdown();
+
+  const type = current[CFG.c.S.type];
+  document.getElementById('cur-badge').innerHTML =
+    `<span class="badge b-${type}">${type}</span>`;
+
+  const pid = current[CFG.c.S.parent];
+  if (pid) {
+    const p = S.find(s => s.id == pid);
+    document.getElementById('cur-parent').textContent =
+      p ? '↑ ' + p[CFG.c.S.nom] : '';
+  } else {
+    document.getElementById('cur-parent').textContent = '';
+  }
+
+  ['btn-html','btn-print','btn-pdf'].forEach(id =>
+    document.getElementById(id).disabled = false
+  );
+
+  document.querySelectorAll('.sel-option').forEach(o => {
+    o.classList.toggle('active', parseInt(o.dataset.id) === id);
+  });
+
+  // 🔵 Correction : suppression de l'ancien actif
+  document.querySelectorAll('.qnav-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+
+  // 🔵 Correction : activation du bon pill
+  const qbtn = document.querySelector(`.qnav-btn[data-id="${current.id}"]`);
+  if (qbtn) qbtn.classList.add('active');
+
+  renderFiche(current);
+}
+
+
+
+/* ═══════════════════════════════════════════════════════
+   NAVIGATION RAPIDE (raccourcis)
+═══════════════════════════════════════════════════════ */
+/* ==== 1. Sélecteur rapide : sigle uniquement ==== */
+
+function buildQuickNav() {
+  const cont = document.getElementById('qnav-items');
+  if (!cont || !D || !D.structures) return;
+
+  const S = D.structures || [];
+
+  const ordreRegion = ["Siège", "DI", "Outremer", "SCN"];
+
+  // Filtrer selon tes règles
+  const filtrées = S.filter(s => {
+    const region = (s[CFG.c.S.region] || "").trim();
+    const sigle  = (s[CFG.c.S.sigle]  || "").trim();
+    const parent = (s[CFG.c.S.parent] || "").trim();
+
+    return (
+      ordreRegion.includes(region) &&
+      sigle !== "" &&
+      parent === "DGDDI"
+    );
+  });
+
+  // Trier par région puis par sigle
+  const triées = filtrées.slice().sort((a, b) => {
+    const rA = ordreRegion.indexOf(a[CFG.c.S.region]);
+    const rB = ordreRegion.indexOf(b[CFG.c.S.region]);
+    if (rA !== rB) return rA - rB;
+
+    const sA = (a[CFG.c.S.sigle] || "").toUpperCase();
+    const sB = (b[CFG.c.S.sigle] || "").toUpperCase();
+    return sA.localeCompare(sB);
+  });
+
+  // Construire les pills
+  let html = "";
+  triées.forEach(s => {
+    const region = s[CFG.c.S.region];
+    const sigle  = s[CFG.c.S.sigle];
+    html += `
+      <button class="qnav-btn ${region}"
+              data-id="${s.id}"
+              data-region="${region}"
+              onclick="selectStructure(${s.id})">
+        ${sigle}
+      </button>`;
+  });
+
+  cont.innerHTML = html;
+}
+
+function selectFirstOfRegion(region) {
+  const S = D.structures || [];
+  const first = S.find(s => (s[CFG.c.S.region] || "").trim() === region);
+  if (first) selectStructure(first.id);
+}
+
+/* ==== 2. Dropdown : badge + sigle + nom long, tri par région ==== */
+
+function renderDropdownList(query) {
+  const list = document.getElementById('sel-list');
+  if (!list || !D || !D.structures) return;
+
+  const structs = selectorStructures();
+  const q = (query || "").toLowerCase().trim();
+  const ordreRegion = { "Siège": 1, "DI": 2, "Outremer": 3, "SCN": 4 };
+
+  const structsTries = structs.slice().sort((a, b) => {
+    const rA = ordreRegion[a[CFG.c.S.region]] || 99;
+    const rB = ordreRegion[b[CFG.c.S.region]] || 99;
+    if (rA !== rB) return rA - rB;
+
+    const sA = (a[CFG.c.S.sigle] || "").toUpperCase();
+    const sB = (b[CFG.c.S.sigle] || "").toUpperCase();
+    return sA.localeCompare(sB);
+  });
+
+  filteredOptions = [];
+  const groups = { "Siège": [], "DI": [], "Outremer": [], "SCN": [] };
+  const gLabels = {
+    "Siège": "Siège DG",
+    "DI": "Directions interrégionales",
+    "Outremer": "Outremer",
+    "SCN": "Services à compétence nationale"
+  };
+
+  structsTries.forEach(s => {
+    const sigle = (s[CFG.c.S.sigle] || "").toLowerCase();
+    const nom   = (s[CFG.c.S.nom]   || "").toLowerCase();
+    const region= (s[CFG.c.S.region]|| "").toLowerCase();
+    const chef  = (s[CFG.c.S.chef]  || "").toLowerCase();
+
+    if (!q || sigle.includes(q) || nom.includes(q) || region.includes(q) || chef.includes(q)) {
+      if (groups[s[CFG.c.S.region]]) {
+        groups[s[CFG.c.S.region]].push(s);
+      }
+      filteredOptions.push(s);
+    }
+  });
+
+  let html = "";
+
+  ["Siège","DI","Outremer","SCN"].forEach(region => {
+    const arr = groups[region];
+    if (!arr || !arr.length) return;
+
+    html += `<div class="sel-group-header">${gLabels[region]}</div>`;
+
+    arr.forEach(s => {
+      const active = current && current.id === s.id ? " active" : "";
+      const sigle  = s[CFG.c.S.sigle] || "";
+      const nom    = s[CFG.c.S.nom]   || "";
+      const type   = s[CFG.c.S.type]  || "";
+
+      html += `
+        <div class="sel-option${active}" data-id="${s.id}"
+             onclick="selectStructure(${s.id})">
+          <span class="badge b-${type}">${type}</span>
+          <span class="opt-sigle">${sigle}</span>
+          <span class="opt-name">${nom}</span>
+        </div>`;
+    });
+  });
+
+  if (!filteredOptions.length) {
+    html = `<div class="sel-no-result">Aucune structure trouvée pour « ${query} »</div>`;
+  }
+
+  list.innerHTML = html;
+  focusedOptIdx = -1;
+}
+
+/* ==== 3. Sélection : champ = SIGLE — NOM LONG + badge + parent ==== */
+
+function selectStructure(id) {
+  if (!D || !D.structures) return;
+
+  const S = D.structures || [];
+  current = S.find(s => s.id == id);
+  if (!current) return;
+
+  const sigle = current[CFG.c.S.sigle] || "";
+  const nom   = current[CFG.c.S.nom]   || "";
+  const type  = current[CFG.c.S.type]  || "";
+
+  // Champ principal
+  const inp = document.getElementById('sel-input');
+  if (inp) {
+    inp.value = `${sigle} — ${nom}`;
+  }
+
+  // Badge courant
+  const badge = document.getElementById('cur-badge');
+  if (badge) {
+    badge.innerHTML = `<span class="badge b-${type}">${type}</span>`;
+  }
+
+  // Parent
+  const pid = current[CFG.c.S.parent];
+  const parentElt = document.getElementById('cur-parent');
+  if (parentElt) {
+    if (pid) {
+      const p = S.find(s => s.id == pid);
+      parentElt.textContent = p ? `↑ ${p[CFG.c.S.nom]}` : "";
+    } else {
+      parentElt.textContent = "";
+    }
+  }
+
+  // Boutons d’action
+  ['btn-html','btn-print','btn-pdf'].forEach(bid => {
+    const b = document.getElementById(bid);
+    if (b) b.disabled = false;
+  });
+
+  // Marquage dans la liste
+  document.querySelectorAll('.sel-option').forEach(o => {
+    o.classList.toggle('active', parseInt(o.dataset.id, 10) === id);
+  });
+
+  // Marquage dans le q‑nav
+  document.querySelectorAll('.qnav-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.id, 10) === id);
+  });
+
+// Mise en surbrillance du bouton de région
+document.querySelectorAll('.qnav-btn').forEach(btn => {
+  btn.classList.remove('active');
+});
+
+const region = current[CFG.c.S.region];
+const btn = document.querySelector(`.qnav-btn[data-region="${region}"]`);
+if (btn) btn.classList.add('active');
+
+
+  closeDropdown();
+  renderFiche(current);
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   MODAL PDF
+═══════════════════════════════════════════════════════ */
+function openPdfModal(){
+  if(!current) return;
+  // Présélectionner la structure courante dans le multi-list
+  selectedStructsForPdf=new Set([current.id]);
+  updateMultiList();
+  document.getElementById('pdf-overlay').classList.add('open');
+}
+function closePdfModal(){ document.getElementById('pdf-overlay').classList.remove('open'); }
+function closePdfModalOutside(e){ if(e.target===document.getElementById('pdf-overlay')) closePdfModal(); }
+
+function setFormat(f){
+  pdfFormat=f;
+  document.getElementById('fmt-single').classList.toggle('selected',f==='single');
+  document.getElementById('fmt-multi').classList.toggle('selected',f==='multi');
+  document.getElementById('multi-section').style.display=f==='multi'?'block':'none';
+  document.getElementById('btn-export-label').textContent=f==='multi'?'Générer le PDF multi-fiches':'Générer le PDF';
+}
+
+function toggleBloc(el){
+  el.classList.toggle('checked');
+  el.querySelector('.bloc-cb').textContent=el.classList.contains('checked')?'✓':'';
+}
+function selectAllBlocs(on){
+  document.querySelectorAll('.bloc-check').forEach(el=>{
+    if(on){el.classList.add('checked');el.querySelector('.bloc-cb').textContent='✓';}
+    else{el.classList.remove('checked');el.querySelector('.bloc-cb').textContent='';}
+  });
+}
+function toggleOpt(el){ el.classList.toggle('checked'); }
+function getSelectedBlocs(){
+  return [...document.querySelectorAll('.bloc-check.checked')].map(el=>el.dataset.bloc);
+}
+
+function buildPdfMultiList(){
+  const list=document.getElementById('ms-list');
+  const S=selectorStructures();
+  list.innerHTML=S.map(s=>`
+    <div class="ms-item ${selectedStructsForPdf.has(s.id)?'checked':''}" data-id="${s.id}" onclick="toggleMsItem(this,${s.id})">
+      <div class="ms-cb">${selectedStructsForPdf.has(s.id)?'✓':''}</div>
+      <span class="badge b-${s[CFG.c.S.type]}" style="font-size:9px">${s[CFG.c.S.type]}</span>
+      <span class="ms-name">${s[CFG.c.S.nom]}</span>
+      <span class="ms-region">${s[CFG.c.S.region]||''}</span>
+    </div>`).join('');
+  updateMsCount();
+}
+
+function toggleMsItem(el,id){
+  if(selectedStructsForPdf.has(id)) selectedStructsForPdf.delete(id);
+  else selectedStructsForPdf.add(id);
+  el.classList.toggle('checked');
+  el.querySelector('.ms-cb').textContent=selectedStructsForPdf.has(id)?'✓':'';
+  updateMsCount();
+}
+function updateMultiList(){
+  document.querySelectorAll('.ms-item').forEach(el=>{
+    const id=parseInt(el.dataset.id);
+    el.classList.toggle('checked',selectedStructsForPdf.has(id));
+    el.querySelector('.ms-cb').textContent=selectedStructsForPdf.has(id)?'✓':'';
+  });
+  updateMsCount();
+}
+function updateMsCount(){
+  document.getElementById('ms-count').textContent=`${selectedStructsForPdf.size} structure(s) sélectionnée(s)`;
+}
+function selectAllStructures(on){
+  selectorStructures().forEach(s=>{ if(on) selectedStructsForPdf.add(s.id); else selectedStructsForPdf.delete(s.id); });
+  updateMultiList();
+}
+
+/* ═══════════════════════════════════════════════════════
+   EXPORT PDF — MOTEUR
+═══════════════════════════════════════════════════════ */
+async function doExportPDF(){
+  const blocs=getSelectedBlocs();
+  if(!blocs.length){ alert('Veuillez sélectionner au moins un bloc à exporter.'); return; }
+  const inclAttn=document.getElementById('opt-attn').classList.contains('checked');
+  const inclDR=document.getElementById('opt-dr').classList.contains('checked');
+  const inclDate=document.getElementById('opt-date').classList.contains('checked');
+
+  const btn=document.getElementById('btn-do-export');
+  btn.disabled=true;
+  document.getElementById('export-progress').style.display='block';
+
+  const structs = pdfFormat==='multi'
+    ? (D.structures||[]).filter(s=>selectedStructsForPdf.has(s.id))
+    : [current];
+
+  if(!structs.length){ alert('Aucune structure sélectionnée.'); btn.disabled=false; return; }
+
+  try{
+    await generatePDF(structs, blocs, inclAttn, inclDR, inclDate);
+  }catch(err){
+    console.error(err);
+    alert('Erreur lors de la génération du PDF. Essayez avec moins de blocs ou une seule structure.');
+  }
+
+  btn.disabled=false;
+  document.getElementById('export-progress').style.display='none';
+  setProgress(0,'');
+  closePdfModal();
+}
+
+function setProgress(pct, msg){
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-msg').textContent=msg;
+}
+
+async function generatePDF(structs, blocs, inclAttn, inclDR, inclDate){
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const pageW=210, pageH=297, margin=12, contentW=pageW-2*margin;
+
+  for(let si=0;si<structs.length;si++){
+    const s=structs[si];
+    setProgress(Math.round(si/structs.length*85), `Structure ${si+1}/${structs.length} : ${s[CFG.c.S.nom]}...`);
+
+    // Créer un conteneur temporaire hors-écran
+    const container=document.createElement('div');
+    container.style.cssText=`position:fixed;left:-9999px;top:0;width:794px;background:#fff;font-family:Cabin,sans-serif;font-size:13px;color:#1E2D3D;`;
+    document.body.appendChild(container);
+
+    // Rendre les blocs sélectionnés dans le conteneur
+    container.innerHTML=buildPdfHTML(s, blocs, inclAttn, inclDR);
+
+    // Rendre la police depuis Google Fonts si disponible
+    await new Promise(r=>setTimeout(r,200));
+
+    const canvas=await html2canvas(container,{
+      scale:2,
+      useCORS:true,
+      logging:false,
+      backgroundColor:'#ffffff',
+      windowWidth:794,
+    });
+    document.body.removeChild(container);
+
+    const imgData=canvas.toDataURL('image/jpeg',0.92);
+    const canvasH=canvas.height/canvas.width*contentW;
+
+    // Découper en pages si nécessaire
+    let yOffset=0;
+    const usableH=pageH-2*margin-(inclDate?6:0);
+
+    if(si>0) pdf.addPage();
+
+    while(yOffset<canvasH){
+      const sliceH=Math.min(usableH, canvasH-yOffset);
+      const slicePct=sliceH/canvasH;
+      const sliceStartPct=yOffset/canvasH;
+
+      // Créer canvas de tranche
+      const sliceCanvas=document.createElement('canvas');
+      sliceCanvas.width=canvas.width;
+      sliceCanvas.height=Math.round(canvas.height*slicePct);
+      const ctx=sliceCanvas.getContext('2d');
+      ctx.drawImage(canvas, 0, Math.round(canvas.height*sliceStartPct), canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+
+      if(yOffset>0) pdf.addPage();
+      pdf.addImage(sliceCanvas.toDataURL('image/jpeg',0.92),'JPEG', margin, margin, contentW, sliceH);
+
+      if(inclDate){
+        pdf.setFontSize(8);
+        pdf.setTextColor(150);
+        const dateStr=`${s[CFG.c.S.nom]} — Export du ${new Date().toLocaleDateString('fr-FR')} — Page ${pdf.internal.getNumberOfPages()}`;
+        pdf.text(dateStr, margin, pageH-5);
+        pdf.setTextColor(0);
+      }
+      yOffset+=sliceH;
+    }
+  }
+
+  setProgress(100,'Finalisation...');
+  await new Promise(r=>setTimeout(r,300));
+
+  const fname = structs.length===1
+    ? `fiche-${structs[0][CFG.c.S.nom].replace(/[^a-z0-9]/gi,'_')}.pdf`
+    : `fiches-indicateurs-${new Date().toISOString().slice(0,10)}.pdf`;
+  pdf.save(fname);
+}
+
+function buildPdfHTML(s, blocs, inclAttn, inclDR){
+  /* ── Données ── */
+  var id   = s.id;
+  var ct   = (D.contentieux||[]).filter(function(r){return r[CFG.c.CT.struct]==id;});
+  var bu   = (D.budget||[]).filter(function(r){return r[CFG.c.B.struct]==id;});
+  var rh   = (D.rh||[]).find(function(r){return r[CFG.c.RH.struct]==id;});
+  var im   = (D.immobilier||[]).filter(function(r){return r[CFG.c.IM.struct]==id;});
+  var vh   = (D.vehicules||[]).find(function(r){return r[CFG.c.VH.struct]==id;});
+  var fm   = (D.fraisMission||[]).filter(function(r){return r[CFG.c.FM.struct]==id;});
+  var cm   = (D.commentaires||[]).filter(function(r){return r[CFG.c.CM.struct]==id;});
+  var drs  = s[CFG.c.S.type]==='DI'
+             ? (D.structures||[]).filter(function(r){return r[CFG.c.S.type]==='DR'&&r[CFG.c.S.parent]==id;})
+             : [];
+
+  /* ── Styles inline réutilisables ── */
+  var CSS = {
+    page:    'font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#1E2D3D;background:#fff;padding:0;',
+    sec:     'margin-bottom:12px;border:1px solid #CDD6E4;border-radius:6px;overflow:hidden;page-break-inside:avoid;',
+    secHdr:  'background:#002F6C;color:#fff;padding:8px 12px;font-size:12px;font-weight:bold;',
+    secBody: 'padding:10px 12px;',
+    /* Tableau KPI horizontal */
+    kpiTbl:  'width:100%;border-collapse:collapse;margin-bottom:8px;',
+    kpiTd:   'background:#EEF2F7;border-radius:4px;padding:8px 6px;text-align:center;border:2px solid #CDD6E4;',
+    kpiVal:  'font-size:18px;font-weight:bold;color:#002F6C;line-height:1;',
+    kpiLbl:  'font-size:9px;color:#4A5A6A;margin-top:3px;',
+    /* Tableau de données */
+    tbl:     'width:100%;border-collapse:collapse;font-size:10px;margin-top:6px;',
+    th:      'background:#E6ECF8;color:#002F6C;padding:5px 7px;text-align:left;font-weight:bold;font-size:9.5px;border-bottom:2px solid #CDD6E4;',
+    thR:     'background:#E6ECF8;color:#002F6C;padding:5px 7px;text-align:right;font-weight:bold;font-size:9.5px;border-bottom:2px solid #CDD6E4;',
+    td:      'padding:5px 7px;border-bottom:1px solid #CDD6E4;vertical-align:middle;',
+    tdR:     'padding:5px 7px;border-bottom:1px solid #CDD6E4;text-align:right;vertical-align:middle;',
+    tdC:     'padding:5px 7px;border-bottom:1px solid #CDD6E4;text-align:center;vertical-align:middle;',
+    /* Barre progression */
+    pbWrap:  'background:#EEF2F7;border-radius:3px;height:6px;margin-top:2px;overflow:hidden;',
+    /* Sous-titre */
+    subT:    'font-size:10px;font-weight:bold;color:#002F6C;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #CDD6E4;padding-bottom:3px;margin:8px 0 5px;',
+    /* Commentaire */
+    cmt:     'margin-top:8px;border-top:1px dashed #CDD6E4;padding-top:7px;font-size:10.5px;color:#4A5A6A;font-style:italic;',
+    /* DR */
+    dr:      'background:#F0F4FF;border-left:3px solid #1351A8;padding:6px 10px;margin-top:5px;border-radius:0 4px 4px 0;font-size:10px;',
+    /* Pill chantier */
+    pill:    'display:inline-block;background:#FFF0A0;border:1px solid #C8A000;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold;color:#5A3D00;margin:2px 3px 2px 0;',
+  };
+
+  /* Couleur KPI selon niveau */
+  function kpiColor(cls){
+    if(cls==='r') return '#B52020';
+    if(cls==='v') return '#1A6B3C';
+    if(cls==='o') return '#C05A00';
+    return '#002F6C';
+  }
+
+  /* Cellule KPI */
+  function kpiCell(val, lbl, cls){
+    var col = kpiColor(cls||'');
+    var bord = '3px solid '+(cls==='r'?'#B52020':cls==='v'?'#1A6B3C':cls==='o'?'#C05A00':'#1351A8');
+    return '<td style="'+CSS.kpiTd+'border-left:'+bord+'">'
+      +'<div style="'+CSS.kpiVal+'color:'+col+'">'+val+'</div>'
+      +'<div style="'+CSS.kpiLbl+'">'+lbl+'</div>'
+      +'</td>';
+  }
+
+  /* Barre de progression inline */
+  function progBar(pct, col){
+    var c = pct>95?'#B52020':pct>80?'#C05A00':'#1A6B3C';
+    if(col) c=col;
+    return '<div style="'+CSS.pbWrap+'">'
+      +'<div style="height:6px;width:'+Math.min(pct,100)+'%;background:'+c+';border-radius:3px;"></div>'
+      +'</div>';
+  }
+
+  /* Commentaire */
+  function cmtBlock(cmRec){
+    if(!cmRec||!cmRec[CFG.c.CM.txt]) return '';
+    return '<div style="'+CSS.cmt+'">&#128172; '+cmRec[CFG.c.CM.txt]+'</div>';
+  }
+
+  var html = '';
+
+  /* ════════════════════════════════
+     EN-TÊTE + LOGO + POINTS ATTENTION
+  ════════════════════════════════ */
+  if(blocs.includes('header')){
+    var paRec     = cm.find(function(x){return x[CFG.c.CM.bloc]==='pointsAttention';});
+    var chantiers = cm.filter(function(x){return x[CFG.c.CM.bloc]==='chantier';})
+                      .map(function(x){return x[CFG.c.CM.txt];}).filter(Boolean);
+    var paTxt = paRec ? (paRec[CFG.c.CM.txt]||'') : '';
+
+    // En-tête avec logo à gauche
+    html += '<table style="width:100%;border-collapse:collapse;margin-bottom:12px;">'
+      +'<tr>'
+      // Logo
+      +'<td style="width:90px;vertical-align:middle;padding-right:14px;">'
+      +'<img src="'+LOGO_URL+'" style="width:80px;height:98px;object-fit:contain;" crossorigin="anonymous">'
+      +'</td>'
+      // Titre
+      +'<td style="vertical-align:top;background:#002F6C;padding:12px 16px;border-radius:0 6px 6px 0;">'
+      +'<div style="font-size:9px;color:#B0C4E8;font-weight:bold;letter-spacing:.8px;text-transform:uppercase;margin-bottom:4px;">Fiche identité</div>'
+      +'<div style="font-size:18px;font-weight:bold;color:#fff;line-height:1.2;margin-bottom:6px;">'+s[CFG.c.S.nom]+'</div>'
+      +'<div style="font-size:10px;color:#B0C4E8;">'
+        +strVal(s[CFG.c.S.type])+(s[CFG.c.S.region]?' &mdash; '+s[CFG.c.S.region]:'')
+        +(s[CFG.c.S.chef]?' | Responsable&#160;: '+s[CFG.c.S.chef]:'')
+        +(s[CFG.c.S.maj]?' | Données au '+s[CFG.c.S.maj]:'')
+      +'</div>'
+      +'</td>'
+      +'</tr>'
+      +'</table>';
+
+    // Points d'attention
+    if(inclAttn && (paTxt || chantiers.length)){
+      html += '<div style="background:#FFFBF0;border:1.5px solid #D4A800;border-left:5px solid #C09000;border-radius:5px;padding:10px 14px;margin-bottom:10px;">'
+        +'<div style="font-size:10px;font-weight:bold;color:#7A5800;text-transform:uppercase;margin-bottom:6px;">&#9888; Points d\'attention &amp; chantiers structurants</div>'
+        +(paTxt?'<div style="font-size:11px;color:#4A3A00;margin-bottom:6px;">'+paTxt+'</div>':'')
+        +(chantiers.length?'<div>'+chantiers.map(function(c){return'<span style="'+CSS.pill+'">&#128295; '+c+'</span>';}).join('')+'</div>':'')
+        +'</div>';
+    }
+  }
+
+  /* ════════════════════════════════
+     CONTENTIEUX
+  ════════════════════════════════ */
+  if(blocs.includes('contentieux')){
+    var cc=CFG.c.CT;
+    var tot=ct.reduce(function(s,r){return s+n(r[cc.nb]);},0);
+    var can=ct.reduce(function(s,r){return s+n(r[cc.cannabis]);},0);
+    var coc=ct.reduce(function(s,r){return s+n(r[cc.cocaine]);},0);
+    var tab=ct.reduce(function(s,r){return s+n(r[cc.tabac]);},0);
+    var clsN=tot>=10?'r':tot>=5?'o':'v';
+    var cmc=cm.find(function(x){return x[CFG.c.CM.bloc]==='contentieux';});
+
+    html+='<div style="'+CSS.sec+'">'
+      +'<div style="'+CSS.secHdr+'">&#9878; Contentieux</div>'
+      +'<div style="'+CSS.secBody+'">'
+      +'<table style="'+CSS.kpiTbl+'"><tr>'
+      +kpiCell(tot,'Dossiers en cours',clsN)
+      +kpiCell(fmtD(can)+' kg','Cannabis','' )
+      +kpiCell(fmtD(coc)+' kg','Coc&iuml;ne','')
+      +kpiCell(fmtD(tab)+' kg','Tabac','')
+      +'</tr></table>';
+
+    if(inclDR && drs.length){
+      drs.forEach(function(dr){
+        var d=(D.contentieux||[]).find(function(r){return r[cc.struct]==dr.id;});
+        html+='<div style="'+CSS.dr+'"><strong>DR&#160;: '+dr[CFG.c.S.nom]+'</strong><br>'
+          +(d?'Dossiers&#160;: '+n(d[cc.nb])+' | Cannabis&#160;: '+fmtD(d[cc.cannabis])+' kg | Coc&iuml;ne&#160;: '+fmtD(d[cc.cocaine])+' kg':'Pas de données')
+          +'</div>';
+      });
+    }
+    html+=cmtBlock(cmc)+'</div></div>';
+  }
+
+  /* ════════════════════════════════
+     BUDGET
+  ════════════════════════════════ */
+  if(blocs.includes('budget')){
+    var cb=CFG.c.B;
+    var cmb=cm.find(function(x){return x[CFG.c.CM.bloc]==='budget';});
+    var types=['Fonctionnement','Investissement','Intervention'];
+
+    html+='<div style="'+CSS.sec+'">'
+      +'<div style="'+CSS.secHdr+'">&#128182; Budget &mdash; '+new Date().getFullYear()+'</div>'
+      +'<div style="'+CSS.secBody+'">'
+      +'<table style="'+CSS.tbl+'">'
+      +'<thead><tr>'
+      +'<th style="'+CSS.th+'">Type</th>'
+      +'<th style="'+CSS.thR+'">AE notif.</th><th style="'+CSS.thR+'">AE mises&#160;&agrave;&#160;dispo</th><th style="'+CSS.thR+'">AE conso.</th><th style="'+CSS.thR+'">Taux&#160;AE</th>'
+      +'<th style="'+CSS.thR+'">CP notif.</th><th style="'+CSS.thR+'">CP mises&#160;&agrave;&#160;dispo</th><th style="'+CSS.thR+'">CP conso.</th><th style="'+CSS.thR+'">Taux&#160;CP</th>'
+      +'</tr></thead>'
+      +'<tbody>';
+
+    var hasRows=false;
+    types.forEach(function(t){
+      var r=bu.find(function(x){return strVal(x[cb.typeb])===t;});
+      if(!r) return;
+      hasRows=true;
+      var aen=n(r[cb.ae_n]),aed=n(r[cb.ae_d]),aec=n(r[cb.ae_c]);
+      var cpn=n(r[cb.cp_n]),cpd=n(r[cb.cp_d]),cpc=n(r[cb.cp_c]);
+      var pae=aed?Math.round(aec/aed*100):aen?Math.round(aec/aen*100):0;
+      var pcp=cpd?Math.round(cpc/cpd*100):cpn?Math.round(cpc/cpn*100):0;
+      html+='<tr>'
+        +'<td style="'+CSS.td+'font-weight:bold;">'+t+'</td>'
+        +'<td style="'+CSS.tdR+'">'+fmt(aen)+'&#160;&euro;</td>'
+        +'<td style="'+CSS.tdR+'">'+fmt(aed)+'&#160;&euro;</td>'
+        +'<td style="'+CSS.tdR+'">'+fmt(aec)+'&#160;&euro;</td>'
+        +'<td style="'+CSS.tdC+'">'+pae+'%'+progBar(pae)+'</td>'
+        +'<td style="'+CSS.tdR+'">'+fmt(cpn)+'&#160;&euro;</td>'
+        +'<td style="'+CSS.tdR+'">'+fmt(cpd)+'&#160;&euro;</td>'
+        +'<td style="'+CSS.tdR+'">'+fmt(cpc)+'&#160;&euro;</td>'
+        +'<td style="'+CSS.tdC+'">'+pcp+'%'+progBar(pcp)+'</td>'
+        +'</tr>';
+    });
+    if(!hasRows) html+='<tr><td colspan="9" style="'+CSS.tdC+'color:#8A9BAA;font-style:italic;">Pas de données</td></tr>';
+    html+='</tbody></table>'+cmtBlock(cmb)+'</div></div>';
+  }
+
+  /* ════════════════════════════════
+     RH
+  ════════════════════════════════ */
+  if(blocs.includes('rh')){
+    var cr=CFG.c.RH;
+    var cmr=cm.find(function(x){return x[CFG.c.CM.bloc]==='rh';});
+    var rem=rh?n(rh[cr.rem]):0, cib=rh?n(rh[cr.cib]):0;
+    var pct=cib?Math.round(rem/cib*100):0;
+
+    html+='<div style="'+CSS.sec+'">'
+      +'<div style="'+CSS.secHdr+'">&#128101; Situation RH</div>'
+      +'<div style="'+CSS.secBody+'">';
+
+    if(rh){
+      html+='<table style="'+CSS.kpiTbl+'"><tr>'
+        +kpiCell(rem,'Eff. rémunérés','')
+        +kpiCell(cib,'Eff. cibles','')
+        +kpiCell(pct+'%','Couverture',pct<90?'o':'v')
+        +kpiCell(fmt(n(rh[cr.ms]))+'&#160;&euro;','Masse salariale','v')
+        +kpiCell(fmtD(n(rh[cr.jf])),'J. form./agent','')
+        +kpiCell(n(rh[cr.abs]),'J. absentéisme','o')
+        +kpiCell(fmtAge(n(rh[cr.age])),'Âge moyen','')
+        +'</tr></table>'
+        +progBar(pct);
+
+      if(inclDR && drs.length){
+        drs.forEach(function(dr){
+          var d=(D.rh||[]).find(function(r){return r[cr.struct]==dr.id;});
+          html+='<div style="'+CSS.dr+'"><strong>DR&#160;: '+dr[CFG.c.S.nom]+'</strong><br>'
+            +(d?'Effectifs&#160;: '+n(d[cr.rem])+'/'+n(d[cr.cib])+' | MS&#160;: '+fmt(n(d[cr.ms]))+'&#160;&euro; | Âge&#160;: '+fmtD(n(d[cr.age]))+' ans':'Pas de données')
+            +'</div>';
+        });
+      }
+    } else {
+      html+='<p style="color:#8A9BAA;font-style:italic;">Pas de données</p>';
+    }
+    html+=cmtBlock(cmr)+'</div></div>';
+  }
+
+  /* ════════════════════════════════
+     IMMOBILIER
+  ════════════════════════════════ */
+  if(blocs.includes('immobilier')){
+    var ci=CFG.c.IM;
+    var cmi=cm.find(function(x){return x[CFG.c.CM.bloc]==='immobilier';});
+    var pub=im.filter(function(s){return strVal(s[ci.occ])==='Domaine public';});
+    var bail=im.filter(function(s){return strVal(s[ci.occ])==='Bail privé';});
+
+    html+='<div style="'+CSS.sec+'">'
+      +'<div style="'+CSS.secHdr+'">&#127963; Situation Immobilière</div>'
+      +'<div style="'+CSS.secBody+'">';
+
+    if(!im.length){
+      html+='<p style="color:#8A9BAA;font-style:italic;">Pas de données</p>';
+    } else {
+      if(pub.length){
+        html+='<div style="'+CSS.subT+'">Domaine public</div>'
+          +'<table style="'+CSS.tbl+'">'
+          +'<thead><tr><th style="'+CSS.th+'">Site</th><th style="'+CSS.th+'">Adresse</th><th style="'+CSS.thR+'">m²</th><th style="'+CSS.thR+'">€/m²</th></tr></thead>'
+          +'<tbody>';
+        pub.forEach(function(s){
+          html+='<tr><td style="'+CSS.td+'">'+s[ci.site]+'</td><td style="'+CSS.td+'font-size:9px;color:#8A9BAA;">'+s[ci.adr]+'</td><td style="'+CSS.tdR+'">'+fmt(n(s[ci.m2]))+' m²</td><td style="'+CSS.tdR+'">'+fmt(n(s[ci.cout]))+'&#160;€</td></tr>';
+        });
+        html+='</tbody></table>';
+      }
+      if(bail.length){
+        html+='<div style="'+CSS.subT+'">Baux privés</div>'
+          +'<table style="'+CSS.tbl+'">'
+          +'<thead><tr><th style="'+CSS.th+'">Site</th><th style="'+CSS.th+'">Adresse</th><th style="'+CSS.thR+'">m²</th><th style="'+CSS.thR+'">€/m²</th><th style="'+CSS.thR+'">Loyer/an</th></tr></thead>'
+          +'<tbody>';
+        bail.forEach(function(s){
+          html+='<tr><td style="'+CSS.td+'">'+s[ci.site]+'</td><td style="'+CSS.td+'font-size:9px;color:#8A9BAA;">'+s[ci.adr]+'</td><td style="'+CSS.tdR+'">'+fmt(n(s[ci.m2]))+' m²</td><td style="'+CSS.tdR+'">'+fmt(n(s[ci.cout]))+'&#160;€</td><td style="'+CSS.tdR+'">'+fmt(n(s[ci.loyer]))+'&#160;€</td></tr>';
+        });
+        html+='</tbody></table>';
+      }
+    }
+    html+=cmtBlock(cmi)+'</div></div>';
+  }
+
+  /* ════════════════════════════════
+     VÉHICULES
+  ════════════════════════════════ */
+  if(blocs.includes('vehicules')){
+    var cv=CFG.c.VH;
+    var cmv=cm.find(function(x){return x[CFG.c.CM.bloc]==='vehicules';});
+    var vs=vh?n(vh[cv.vet_s]):0, vn=vh?n(vh[cv.vet_n]):0;
+    var ps=vh?n(vh[cv.vpa_s]).toFixed(2):'—', pn=vh?n(vh[cv.vpa_n]).toFixed(2):'—';
+    var clsVet=vs>vn?'r':vs>vn*0.8?'o':'v';
+    var clsVpa=parseFloat(ps)>parseFloat(pn)?'r':'v';
+
+    html+='<div style="'+CSS.sec+'">'
+      +'<div style="'+CSS.secHdr+'">&#128663; Parc de véhicules</div>'
+      +'<div style="'+CSS.secBody+'">';
+
+    if(vh){
+      html+='<table style="'+CSS.kpiTbl+'"><tr>'
+        +kpiCell(n(vh[cv.nb]),'Véhicules','')
+        +kpiCell(vs+'%','Vétusté structure',clsVet)
+        +kpiCell(vn+'%','Vétusté nationale','')
+        +kpiCell(ps,'Véh./agent structure',clsVpa)
+        +kpiCell(pn,'Véh./agent national','')
+        +'</tr></table>';
+
+      if(inclDR && drs.length){
+        drs.forEach(function(dr){
+          var d=(D.vehicules||[]).find(function(r){return r[cv.struct]==dr.id;});
+          html+='<div style="'+CSS.dr+'"><strong>DR&#160;: '+dr[CFG.c.S.nom]+'</strong><br>'
+            +(d?'Véhicules&#160;: '+n(d[cv.nb])+' | Vétusté&#160;: '+n(d[cv.vet_s])+'% (nat. '+n(d[cv.vet_n])+'%) | Véh./agent&#160;: '+n(d[cv.vpa_s]).toFixed(2):'Pas de données')
+            +'</div>';
+        });
+      }
+    } else {
+      html+='<p style="color:#8A9BAA;font-style:italic;">Pas de données</p>';
+    }
+    html+=cmtBlock(cmv)+'</div></div>';
+  }
+
+  /* ════════════════════════════════
+     FRAIS DE MISSION
+  ════════════════════════════════ */
+  if(blocs.includes('fraisMission')){
+    var cf=CFG.c.FM;
+    var cmfm=cm.find(function(x){return x[CFG.c.CM.bloc]==='fraisMission';});
+    var typesFM=['Formation','AutresMissions'];
+    var labelsFM={'Formation':'Formation','AutresMissions':'Autres missions'};
+    var annees=[...new Set(fm.map(function(r){return Number(r[cf.annee]);}))].filter(Boolean).sort();
+    var maxVal=Math.max.apply(null,fm.map(function(r){return n(r[cf.mt]);}));
+    if(maxVal<=0) maxVal=1;
+
+    html+='<div style="'+CSS.sec+'">'
+      +'<div style="'+CSS.secHdr+'">&#9992; Frais de mission &mdash; 4 ans</div>'
+      +'<div style="'+CSS.secBody+'">';
+
+    var hasFM=false;
+    typesFM.forEach(function(t){
+      var rows=fm.filter(function(r){return strVal(r[cf.type])===t;}).sort(function(a,b){return Number(a[cf.annee])-Number(b[cf.annee]);});
+      if(!rows.length) return;
+      hasFM=true;
+      html+='<div style="'+CSS.subT+'">'+labelsFM[t]+'</div>';
+      // Tableau : années en colonnes
+      html+='<table style="'+CSS.tbl+'"><thead><tr><th style="'+CSS.th+'">Année</th><th style="'+CSS.thR+'">Total</th><th style="'+CSS.thR+'">Transport</th><th style="'+CSS.thR+'">Hébergement</th><th style="'+CSS.thR+'">Repas</th></tr></thead><tbody>';
+      rows.forEach(function(r){
+        var mt=n(r[cf.mt]), tr=n(r[cf.tr]), hb=n(r[cf.hb]), rp=n(r[cf.rp]);
+        html+='<tr>'
+          +'<td style="'+CSS.td+'font-weight:bold;">'+Number(r[cf.annee])+'</td>'
+          +'<td style="'+CSS.tdR+'font-weight:bold;">'+fmt(mt)+'&#160;&euro;</td>'
+          +'<td style="'+CSS.tdR+'">'+tr+'%</td>'
+          +'<td style="'+CSS.tdR+'">'+hb+'%</td>'
+          +'<td style="'+CSS.tdR+'">'+rp+'%</td>'
+          +'</tr>';
+      });
+      html+='</tbody></table>';
+    });
+    if(!hasFM) html+='<p style="color:#8A9BAA;font-style:italic;">Pas de données</p>';
+    html+=cmtBlock(cmfm)+'</div></div>';
+  }
+
+  return html;
+}
+
+/* ═══════════════════════════════════════════════════════
+   EXPORT HTML
+═══════════════════════════════════════════════════════ */
+function exportHTML(){
+  if(!current){alert('Veuillez sélectionner une structure.');return;}
+  // Cloner et nettoyer les éléments interactifs (crayons, zones d'édition)
+  const clone=document.getElementById('fiche-body').cloneNode(true);
+  clone.querySelectorAll('.edit-btn,.attn-edit-btn,.edit-zone,.attn-edit-zone').forEach(el=>el.remove());
+  clone.querySelectorAll('textarea,.btn-save,.btn-cancel-edit,.save-msg').forEach(el=>el.remove());
+  const ficheHTML=clone.innerHTML;
+  const styles=[...document.styleSheets].map(ss=>{try{return[...ss.cssRules].map(r=>r.cssText).join('\n');}catch(e){return '';}}).join('\n');
+  const doc=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Fiche — ${current[CFG.c.S.nom]}</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Cabin:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>${styles}</style></head>
+<body style="background:#F2F5FA;"><div style="max-width:1120px;margin:20px auto;padding:0 16px 50px;">
+<div style="background:#002F6C;color:#fff;padding:12px 18px;border-radius:6px;margin-bottom:14px;">
+  <h1 style="font-size:16px;font-weight:700;font-family:'Libre Baskerville',serif;">${current[CFG.c.S.nom]} — Indicateurs de gestion</h1>
+  <p style="font-size:10.5px;opacity:.6;margin-top:4px;">Export hors-ligne — ${new Date().toLocaleDateString('fr-FR')}</p>
+</div>
+${ficheHTML}
+</div></body></html>`;
+  const blob=new Blob([doc],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=(current[CFG.c.S.sigle]||current[CFG.c.S.nom]).replace(/[^a-zA-Z0-9-_]/g,'_')+'-fiche.html';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},2000);
+}
+function renderFiche(s){
+  const id=s.id;
+  _curId=id;
+  if(!_fBySigle) fBuildIdx();
+  const body=document.getElementById('fiche-body');
+  body.style.display='block';
+
+  // Filtrage par année sélectionnée
+  const ctAll=(D.contentieux||[]).filter(r=>r[CFG.c.CT.struct]==id);
+  const ct=filtreAnnee(ctAll,'Annee');
+  const buAll=(D.budget||[]).filter(r=>r[CFG.c.B.struct]==id);
+  const bu=filtreAnnee(buAll,'Annee');
+  const rhAll=(D.rh||[]).filter(r=>r[CFG.c.RH.struct]==id);
+  const rh=filtreAnnee(rhAll,'Annee');
+  const im=(D.immobilier||[]).filter(r=>r[CFG.c.IM.struct]==id);
+  const vhAll=(D.vehicules||[]).filter(r=>r[CFG.c.VH.struct]==id);
+  const vhFilt=filtreAnnee(vhAll,'Annee');
+  const vh=vhFilt[0]||null;
+  const fm=(D.fraisMission||[]).filter(r=>r[CFG.c.FM.struct]==id);
+  const cm=(D.commentaires||[]).filter(r=>r[CFG.c.CM.struct]==id);
+  const drs=fEnfantsDR(s); // enfants DR de cette structure
+
+  // Contentieux : masqué si aucune donnée
+  const hasContentieux=ct.some(r=>n(r[CFG.c.CT.nb])>0||n(r[CFG.c.CT.cannabis])>0||n(r[CFG.c.CT.cocaine])>0||n(r[CFG.c.CT.tabac])>0);
+  const ctBlock=hasContentieux?renderContentieux(ct,cm,drs):'';
+
+  body.innerHTML=renderHeader(s)+renderPointsAttn(cm)
+    +'<div class="grid">'
+    +ctBlock
+    +renderRH(rh,cm,drs,s)
+    +renderBudget(bu,cm)
+    +renderVehicules(vh,cm,drs,s)
+    +renderImmobilier(im,cm,s)
+    +renderFraisMission(fm,cm)
+    +renderInformatique(s,cm)
+    +'</div>';
+}
+function renderHeader(s){
+  const c=CFG.c.S;
+  return`<div class="fiche-header">
+    <div class="logo-box"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg/250px-Logo_des_Douanes_Fran%C3%A7aises.svg.png" alt="Logo des Douanes françaises" onerror="this.style.opacity='.3'"></div>
+    <div class="hdr-info">
+      <h2>${s[c.nom]}</h2>
+      <div class="hdr-sous">${s[c.type]}${s[c.region]?' — '+s[c.region]:''}</div>
+      <div class="hdr-meta">
+        ${s[c.chef]?`<div class="meta-pill">👤 <strong>Responsable :</strong> ${s[c.chef]}</div>`:''}
+        ${s[c.region]?`<div class="meta-pill">📍 <strong>Région :</strong> ${s[c.region]}</div>`:''}
+      </div>
+      <div class="hdr-date">Données au ${s[c.maj]||'N/A'}</div>
+    </div>
+  </div>`;
+}
+function renderPointsAttn(cm){
+  const c = CFG.c.CM;
+  const paRec     = cm.find(r => r[c.bloc] === 'pointsAttention');
+  const chantiers = cm.filter(r => r[c.bloc] === 'chantier').map(r => r[c.txt]).filter(Boolean);
+  const txt = paRec ? (paRec[c.txt] || '') : '';
+  const cmId = paRec ? paRec.id : null;
+  const canEdit = typeof grist !== 'undefined' && typeof grist.docApi !== 'undefined';
+  const editBtn = canEdit
+    ? `<button class="attn-edit-btn" onclick="toggleAttnEdit()" title="Modifier les points d'attention">✏️ Modifier</button>`
+    : '';
+
+  return `<div class="attn-box">
+    <div class="attn-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>&#9888;&#65039; Points d&#39;attention &amp; chantiers structurants</span>
+      ${editBtn}
+    </div>
+    <div class="attn-text" id="attn-display">${txt || '<em style="color:#9A7A20">Aucun point d\'attention renseigné.</em>'}</div>
+    ${chantiers.length
+      ? `<div class="attn-chantiers" id="attn-chantiers-list">${chantiers.map(function(ch){ return '<span class="chantier-pill">&#128295; ' + ch + '</span>'; }).join('')}</div>`
+      : '<div id="attn-chantiers-list" style="font-size:10.5px;color:#9A7A20;margin-top:8px;font-style:italic">Ajoutez des lignes Bloc=chantier dans la table Commentaires.</div>'
+    }
+    <div class="attn-edit-zone" id="attn-edit-zone">
+      <div style="font-size:11px;font-weight:700;color:#7A5800;margin-bottom:4px;">Texte de synthèse (Bloc=pointsAttention)</div>
+      <textarea class="edit-textarea" id="attn-ta-txt" rows="3">${txt||''}</textarea>
+      <div style="font-size:11px;font-weight:700;color:#7A5800;margin:8px 0 4px;">Chantiers (un par ligne, Bloc=chantier)</div>
+      <textarea class="edit-textarea" id="attn-ta-chantiers" rows="4">${chantiers.join('\n')}</textarea>
+      <div class="edit-actions">
+        <button class="btn-save" onclick="savePointsAttn(${cmId})">💾 Enregistrer</button>
+        <button class="btn-cancel-edit" onclick="toggleAttnEdit()">Annuler</button>
+        <span class="save-msg" id="attn-save-msg">✅ Sauvegardé</span>
+      </div>
+    </div>
+  </div>`;
+}
+function renderContentieux(data,cms,drs){
+  const c=CFG.c.CT, cm=cms.find(x=>x[CFG.c.CM.bloc]==='contentieux');
+  const tot=data.reduce((s,r)=>s+(r[c.nb]||0),0);
+  const clsN=tot===0?'vert':tot<5?'':tot<10?'orange':'rouge';
+  const can=data.reduce((s,r)=>s+(r[c.cannabis]||0),0), coc=data.reduce((s,r)=>s+(r[c.cocaine]||0),0), tab=data.reduce((s,r)=>s+(r[c.tabac]||0),0);
+  return`<div class="section"><div class="sec-hdr"><span class="ico">⚖️</span><h3>Contentieux${anneeAffichee(data,"Annee")?' <span style="font-size:11px;font-weight:400;opacity:.7;">— '+anneeAffichee(data,"Annee")+'</span>':''}</h3></div><div class="sec-body"><div class="kpi-row"><div class="kpi ${clsN}"><div class="kv">${tot}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Dossiers</div></div><div class="kpi"><div class="kv" style="font-size:15px">${fmtD(can)} kg</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Cannabis</div></div><div class="kpi"><div class="kv" style="font-size:15px">${fmtD(coc)} kg</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Cocaïne</div></div><div class="kpi"><div class="kv" style="font-size:15px">${fmtD(tab)} kg</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Tabac</div></div></div>${drs.length?renderDRBlock(drs,'contentieux'):''}${renderCmt(cm,'contentieux',_curId)}</div></div>`;
+}
+function renderBudget(data,cms){
+  const c=CFG.c.B, cm=cms.find(x=>x[CFG.c.CM.bloc]==='budget');
+  if(!data.length) return secEmpty('💶','Budget',cm,'full','budget');
+  const annee=anneeAffichee(data,'Annee');
+  const types=['Fonctionnement','Investissement','Intervention'];
+  const renderType=(label,rows)=>{
+    if(!rows.length) return '';
+    const r=rows[0];
+    const aen=n(r[c.ae_n]),aed=n(r[c.ae_d]),aec=n(r[c.ae_c]), cpn=n(r[c.cp_n]),cpd=n(r[c.cp_d]),cpc=n(r[c.cp_c]);
+    const pAE=aed?Math.round(aec/aed*100):aen?Math.round(aec/aen*100):0;
+    const pCP=cpd?Math.round(cpc/cpd*100):cpn?Math.round(cpc/cpn*100):0;
+    const cA=pAE>95?'pf-danger':pAE>80?'pf-warn':'pf-ok', cC=pCP>95?'pf-danger':pCP>80?'pf-warn':'pf-ok';
+    return`<div class="sub-title">${label}</div><table class="dt" style="margin-bottom:8px"><thead><tr><th></th><th class="tr">Notifiées</th><th class="tr">Mises à dispo</th><th class="tr">Consommées</th><th class="tr">Taux exec.</th></tr></thead><tbody><tr><td class="tbold">AE</td><td class="tr">${fmt(aen)} €</td><td class="tr">${fmt(aed)} €</td><td class="tr">${fmt(aec)} €</td><td class="tc"><div>${pAE}%</div><div class="prog-bar" style="width:70px;display:inline-block;margin-top:2px"><div class="prog-fill ${cA}" style="width:${Math.min(pAE,100)}%"></div></div></td></tr><tr><td class="tbold">CP</td><td class="tr">${fmt(cpn)} €</td><td class="tr">${fmt(cpd)} €</td><td class="tr">${fmt(cpc)} €</td><td class="tc"><div>${pCP}%</div><div class="prog-bar" style="width:70px;display:inline-block;margin-top:2px"><div class="prog-fill ${cC}" style="width:${Math.min(pCP,100)}%"></div></div></td></tr></tbody></table>`;
+  };
+  // Pas de DR dans le budget (géré au niveau DI)
+  return`<div class="section full"><div class="sec-hdr"><span class="ico">💶</span><h3>Budget${annee?' <span style="font-size:11px;font-weight:400;opacity:.7;">— '+annee+'</span>':''}</h3></div><div class="sec-body">${types.map(t=>renderType(t,data.filter(r=>strVal(r[c.typeb])===t))).join('')}${renderCmt(cm,'budget',_curId)}</div></div>`;
+}
+function renderRH(rhRows,cms,drs,s){
+  const c=CFG.c.RH, cm=cms.find(x=>x[CFG.c.CM.bloc]==='rh');
+  if(!_fBySigle) fBuildIdx();
+  const typeS=strVal(s?s[CFG.c.S.type]:'');
+  const IS_PARENT=HIER_FICHE.TYPES_AVEC_FILLES.has(typeS);
+
+  // Données propres de la structure sélectionnée
+  const own=rhRows&&rhRows.length?rhRows[0]:null;
+
+  // Afficher le bloc même sans données propres (message 'Aucune donnée' pour les DR)
+  const filles=IS_PARENT?fEnfantsDe(s):[];
+  const rhAll=fArr(D.rh||[]);
+  const fillesAvecDonnees=filles.filter(function(f){return rhAll.some(function(r){return n(r[c.struct])===f.id;});});
+  // Masquer uniquement si DI/SCN/Siège sans aucune fille avec données
+  if(IS_PARENT&&!own&&!fillesAvecDonnees.length) return secEmpty('👥','Situation RH',cm,'','rh');
+
+  const annee=own?anneeAffichee(rhRows,'Annee'):'';
+
+  // Valeurs consolidées (propre + filles récursives)
+  const etptAgco = Math.round(fConsoVal(s, rhAll, c.struct, function(r){return n(r[c.etpt_agco]);}));
+  const etptSu   = Math.round(fConsoVal(s, rhAll, c.struct, function(r){return n(r[c.etpt_su]);}));
+  const etptTot  = Math.round(fConsoVal(s, rhAll, c.struct, function(r){return n(r[c.etpt_tot])||n(r[c.etpt_agco])+n(r[c.etpt_su]);}));
+  const ms       = IS_PARENT?Math.ceil(fConsoVal(s,rhAll,c.struct,function(r){return n(r[c.ms]);})):own?Math.ceil(n(own[c.ms])):0;
+
+  // Indicateurs propres uniquement (pas consolidés)
+  const cib  = own&&['DI','Siège','siège','SIEGE'].includes(typeS)?n(own[c.cib]):null;
+  const jf   = own?n(own[c.jf]):null;
+  const abs  = own?n(own[c.abs]):null;
+  const age  = own?n(own[c.age]):null;
+  // Message affiché sous les KPI si DR sans données propres
+  const noDonneesPropres = !own && !IS_PARENT;
+  const mo=(D.moyennes||[])[0]||{};
+  const absN=nPct(mo[CFG.c.MO.abs_n]);
+  const ageN=nPct(mo[CFG.c.MO.age_n]);
+
+  // KPI row
+  const hasDetail=etptAgco>0||etptSu>0;
+  const etptKpi=hasDetail
+    ?`<div class="kpi"><div class="kv">${etptAgco}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">ETPT AGCO</div></div>`
+     +`<div class="kpi"><div class="kv">${etptSu}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">ETPT SU</div></div>`
+     +`<div class="kpi vert"><div class="kv">${etptTot}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">ETPT total${IS_PARENT?' (consolid\u00e9)':''}</div></div>`
+    :`<div class="kpi vert"><div class="kv">${etptTot||'—'}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">ETPT${IS_PARENT?' (consolid\u00e9)':''}</div></div>`;
+
+  const cibKpi=cib?`<div class="kpi"><div class="kv">${cib}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Eff. cibles</div></div>`:'';
+  const msKpi=['DI','DR','Siège','siège','SIEGE'].includes(typeS)&&ms
+    ?`<div class="kpi vert"><div class="kv" style="font-size:13px">${fmt(ms)} €</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Masse salariale${IS_PARENT?' (consolid\u00e9e)':''}</div></div>`:'';
+  const jfKpi=jf?`<div class="kpi"><div class="kv">${fmtD(jf)}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">J. form./agent</div></div>`:'';
+  const absKpi=abs!==null?`<div class="kpi orange"><div class="kv">${abs}</div><div class="kl" style="font-size:${absN?'9.5':'10.5'}px;color:var(--gris2)">${absN?'abs. (nat. '+absN+')':'J. absentéisme'}</div></div>`:'';
+  const ageKpi=age?`<div class="kpi"><div class="kv" style="font-size:12px">${fmtAge(age)}</div><div class="kl" style="font-size:${ageN?'9.5':'10.5'}px;color:var(--gris2)">${ageN?'(nat. '+fmtAge(ageN)+')':'Âge moyen'}</div></div>`:'';
+
+  // Tableau de répartition par fille (DI → DR, DR autonome → ses filles)
+  let repTable='';
+  if(IS_PARENT&&fillesAvecDonnees.length>0){
+    const rhFiltAll=fArr(D.rh||[]);
+    const lignes=fillesAvecDonnees.map(function(f){
+      const rf=rhFiltAll.find(function(r){return n(r[c.struct])===f.id;});
+      if(!rf) return '';
+      const fa=Math.round(n(rf[c.etpt_agco])), fs=Math.round(n(rf[c.etpt_su]));
+      const ft=Math.round(n(rf[c.etpt_tot])||fa+fs);
+      const fms=Math.ceil(n(rf[c.ms]));
+      const fnm=strVal(f[CFG.c.S.nom]||f.Nom||'');
+      const fsig=strVal(f[CFG.c.S.sigle]||f.Sigle||'');
+      return `<tr>
+        <td class="tbold">${fsig||fnm}</td>
+        <td style="font-size:10px;color:var(--gris2)">${fsig?fnm:''}</td>
+        <td class="tr">${fa||'—'}</td>
+        <td class="tr">${fs||'—'}</td>
+        <td class="tr" style="font-weight:700">${ft||'—'}</td>
+        ${['DI','DR','Siège','siège','SIEGE'].includes(typeS)?`<td class="tr">${fms?fmt(fms)+' €':'—'}</td>`:''}
+      </tr>`;
+    }).filter(Boolean).join('');
+    const showMS=['DI','DR','Siège','siège','SIEGE'].includes(typeS);
+    if(lignes){
+      repTable=`<div class="repartition-wrap">
+        <div class="repartition-titre">Répartition par direction fille</div>
+        <table class="repartition-table">
+          <thead><tr>
+            <th>Sigle</th><th>Structure</th>
+            <th class="tr">ETPT AGCO</th><th class="tr">ETPT SU</th><th class="tr">ETPT Total</th>
+            ${showMS?'<th class="tr">Masse sal.</th>':''}
+          </tr></thead>
+          <tbody>${lignes}</tbody>
+          <tr class="rep-total">
+            <td colspan="2">Total consolidé</td>
+            <td class="tr">${etptAgco||'—'}</td>
+            <td class="tr">${etptSu||'—'}</td>
+            <td class="tr">${etptTot||'—'}</td>
+            ${showMS?`<td class="tr">${ms?fmt(ms)+' €':'—'}</td>`:''}
+          </tr>
+        </table>
+      </div>`;
+    }
+  }
+
+  const aucuneDonneeMsg = (!own&&!IS_PARENT)
+    ? '<div class="no-data" style="color:var(--gris3);font-style:italic;padding:8px 0;">Aucune donnée disponible pour cette structure.</div>'
+    : '';
+  return`<div class="section"><div class="sec-hdr"><span class="ico">👥</span><h3>Situation RH${annee?' <span style="font-size:11px;font-weight:400;opacity:.7;">— '+annee+'</span>':''}</h3></div><div class="sec-body">
+    <div class="kpi-row">${etptKpi}${cibKpi}${msKpi}${jfKpi}${absKpi}${ageKpi}</div>
+    ${aucuneDonneeMsg}
+    ${repTable}
+    ${renderCmt(cm,'rh',_curId)}
+  </div></div>`;
+}
+function renderImmobilier(sites,cms,s){
+  const c=CFG.c.IM, cm=cms.find(x=>x[CFG.c.CM.bloc]==='immobilier');
+  if(!_fBySigle) fBuildIdx();
+  const typeS=strVal(s?s[CFG.c.S.type]:'');
+  const IS_PARENT=HIER_FICHE.TYPES_AVEC_FILLES.has(typeS);
+
+  // Sites consolidés : propres + filles récursives
+  let tousSites=sites;
+  if(IS_PARENT){
+    const imAll=D.immobilier||[];
+    const filles=fDescendants(s);
+    const sitesFilles=filles.flatMap(function(f){return imAll.filter(function(r){return n(r[c.struct])===f.id;});});
+    tousSites=[...sites,...sitesFilles];
+  }
+  if(!tousSites.length) return secEmpty('🏛️','Situation Immobilière',cm,'full','immobilier');
+
+  const pub=tousSites.filter(r=>strVal(r[c.occ])==='Domaine public');
+  const bail=tousSites.filter(r=>strVal(r[c.occ])==='Bail privé');
+  const totalM2=tousSites.reduce((s,r)=>s+n(r[c.m2]),0);
+  const totalLoyer=bail.reduce((s,r)=>s+n(r[c.loyer]),0);
+
+  // Pour les DI : liste consolidée avec identification de la structure fille
+  const renderSite=(site, structNom)=>{
+    const structInfo=IS_PARENT&&structNom?`<span style="font-size:9px;color:var(--gris3);margin-left:4px;">[${structNom}]</span>`:'';
+    return `<tr><td class="tbold">${site[c.site]}${structInfo}</td><td class="td-sub">${site[c.adr]}</td><td class="tr">${fmt(n(site[c.m2]))} m²</td><td class="tr">${fmt(n(site[c.cout]))} €</td></tr>`;
+  };
+  const renderSiteBail=(site, structNom)=>{
+    const structInfo=IS_PARENT&&structNom?`<span style="font-size:9px;color:var(--gris3);margin-left:4px;">[${structNom}]</span>`:'';
+    return `<tr><td class="tbold">${site[c.site]}${structInfo}</td><td class="td-sub">${site[c.adr]}</td><td class="tr">${fmt(n(site[c.m2]))} m²</td><td class="tr">${fmt(n(site[c.cout]))} €</td><td class="tr">${fmt(n(site[c.loyer]))} €</td></tr>`;
+  };
+
+  // Résoudre le nom de la structure fille pour chaque site (si DI)
+  function getStructNom(site){
+    if(!IS_PARENT) return '';
+    const stId=n(site[c.struct]);
+    const st=(D.structures||[]).find(function(r){return r.id===stId;});
+    return st?strVal(st[CFG.c.S.sigle]||st[CFG.c.S.nom]||''):'';
+  }
+
+  const pubHtml=pub.length?
+    `<div class="sub-title">Domaine public (${pub.length} site${pub.length>1?'s':''})</div><table class="dt" style="margin-bottom:8px"><thead><tr><th>Site</th><th>Adresse</th><th class="tr">m²</th><th class="tr">Coût/m²</th></tr></thead><tbody>${pub.map(s=>renderSite(s,getStructNom(s))).join('')}</tbody></table>`:'';
+  const bailHtml=bail.length?
+    `<div class="sub-title">Baux privés (${bail.length} bail${bail.length>1?'s':''})</div><table class="dt" style="margin-bottom:8px"><thead><tr><th>Site</th><th>Adresse</th><th class="tr">m²</th><th class="tr">Coût/m²</th><th class="tr">Loyer/an</th></tr></thead><tbody>${bail.map(s=>renderSiteBail(s,getStructNom(s))).join('')}</tbody></table>`:'';
+
+  const titreConsolide=IS_PARENT&&tousSites.length>sites.length?' <span style="font-size:11px;font-weight:400;opacity:.7;">(consolidé)</span>':'';
+
+  return`<div class="section full"><div class="sec-hdr"><span class="ico">🏛️</span><h3>Situation Immobilière${titreConsolide}</h3></div><div class="sec-body">
+    <div class="kpi-row">
+      <div class="kpi"><div class="kv">${tousSites.length}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Sites</div></div>
+      <div class="kpi vert"><div class="kv" style="font-size:14px">${fmt(totalM2)}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">m² occupés</div></div>
+      <div class="kpi"><div class="kv">${pub.length}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Domaine public</div></div>
+      <div class="kpi orange"><div class="kv">${bail.length}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Baux privés</div></div>
+      ${totalLoyer?`<div class="kpi jaune"><div class="kv" style="font-size:13px">${fmt(totalLoyer)} €</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Loyers annuels</div></div>`:''}
+    </div>
+    ${pubHtml}${bailHtml}
+    ${renderCmt(cm,'immobilier',_curId)}
+  </div></div>`;
+}
+function renderVehicules(v,cms,drs,s){
+  const c=CFG.c.VH, cm=cms.find(x=>x[CFG.c.CM.bloc]==='vehicules');
+  if(!_fBySigle) fBuildIdx();
+  const typeS=strVal(s?s[CFG.c.S.type]:'');
+  const IS_PARENT=HIER_FICHE.TYPES_AVEC_FILLES.has(typeS);
+  const vhAll=fArr(D.vehicules||[]);
+
+  // Si pas de données → masquer
+  const filles=IS_PARENT?fEnfantsDe(s):[];
+  const fillesAvecDonnees=filles.filter(function(f){return vhAll.some(function(r){return n(r[c.struct])===f.id;});});
+  if(!v&&!fillesAvecDonnees.length) return secEmpty('🚗','Parc de véhicules',cm,'','vehicules');
+
+  const annee=v?anneeAffichee([v],'Annee'):'';
+  const mo=(D.moyennes||[])[0]||{};
+  const vn=nPct(mo[CFG.c.MO.vet_n])||n(v?v[c.vet_n]:0);
+  const pn=nPct(mo[CFG.c.MO.vpa_n])||n(v?v[c.vpa_n]:0);
+
+  // Valeurs consolidées
+  const nbTot=IS_PARENT?Math.round(fConsoVal(s,vhAll,c.struct,function(r){return n(r[c.nb]);})):v?n(v[c.nb]):0;
+  // Vétusté : moyenne simple des structures avec données
+  const allRows=IS_PARENT?[v].concat(fillesAvecDonnees.map(function(f){return vhAll.find(function(r){return n(r[c.struct])===f.id;});})).filter(Boolean):(v?[v]:[]);
+  const vets=allRows.map(function(r){return n(r[c.vet_s]);}).filter(Boolean);
+  const vs=vets.length?Math.round(vets.reduce(function(a,b){return a+b;},0)/vets.length):0;
+  const ps=v?n(v[c.vpa_s]):0;
+
+  const clsV=vs>vn?'rouge':vs>vn*0.8?'orange':'vert';
+  const vsTag=vs>vn?`<span class="vs-nat vs-bad">▲ +${(vs-vn).toFixed(0)} pts vs nat.</span>`:`<span class="vs-nat vs-ok">▼ ${(vn-vs).toFixed(0)} pts vs nat.</span>`;
+  const psTag=ps>pn?`<span class="vs-nat vs-bad">▲</span>`:`<span class="vs-nat vs-ok">▼</span>`;
+
+  // Tableau filles
+  let repTable='';
+  if(IS_PARENT&&fillesAvecDonnees.length>0){
+    const lignes=fillesAvecDonnees.map(function(f){
+      const rf=vhAll.find(function(r){return n(r[c.struct])===f.id;});
+      if(!rf) return '';
+      const fnb=n(rf[c.nb]), fvs=n(rf[c.vet_s]), fps=n(rf[c.vpa_s]).toFixed(2);
+      const fclsV=fvs>vn?'rouge':fvs>vn*0.8?'orange':'vert';
+      const fnm=strVal(f[CFG.c.S.nom]||''), fsig=strVal(f[CFG.c.S.sigle]||'');
+      return `<tr>
+        <td class="tbold">${fsig||fnm}</td>
+        <td style="font-size:10px;color:var(--gris2)">${fsig?fnm:''}</td>
+        <td class="tr">${fnb||'—'}</td>
+        <td class="tr"><span style="color:var(--${fclsV})">${fvs}%</span></td>
+        <td class="tr">${fps}</td>
+      </tr>`;
+    }).filter(Boolean).join('');
+    if(lignes){
+      repTable=`<div class="repartition-wrap">
+        <div class="repartition-titre">Répartition par direction fille</div>
+        <table class="repartition-table">
+          <thead><tr><th>Sigle</th><th>Structure</th><th class="tr">Nb véhicules</th><th class="tr">Vétusté</th><th class="tr">Véh./agent</th></tr></thead>
+          <tbody>${lignes}</tbody>
+          <tr class="rep-total"><td colspan="2">Total consolidé</td><td class="tr">${nbTot}</td><td class="tr">${vs}%</td><td>—</td></tr>
+        </table></div>`;
+    }
+  }
+
+  return`<div class="section"><div class="sec-hdr"><span class="ico">🚗</span><h3>Parc de véhicules${annee?' <span style="font-size:11px;font-weight:400;opacity:.7;">— '+annee+'</span>':''}</h3></div><div class="sec-body">
+    <div class="kpi-row">
+      <div class="kpi"><div class="kv">${nbTot}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Véhicules${IS_PARENT?' (consolid\u00e9s)':''}</div></div>
+      <div class="kpi ${clsV}"><div class="kv">${vs}%</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Vétusté${IS_PARENT?' moy.':' structure'}</div></div>
+      <div class="kpi"><div class="kv" style="font-size:15px;color:var(--gris2)">${vn}%</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Vétusté nationale</div></div>
+      ${!IS_PARENT&&ps?`<div class="kpi ${ps>pn?'rouge':'vert'}"><div class="kv">${ps.toFixed(2)}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Véh./agent ${psTag}</div></div>`:''}
+    </div>
+    <div style="margin:4px 0 8px">${vsTag}</div>
+    ${repTable}
+    ${renderCmt(cm,'vehicules',_curId)}
+  </div></div>`;
+}
+function renderFraisMission(data,cms){
+  const c=CFG.c.FM, cm=cms.find(x=>x[CFG.c.CM.bloc]==='fraisMission');
+  if(!data.length) return secEmpty('✈️','Frais de mission',cm,'full','fraisMission');
+  const types=['Formation','AutresMissions'], labels={'Formation':'Formation','AutresMissions':'Autres missions'};
+  const maxAll=Math.max(...data.map(r=>n(r[c.mt])),1);
+  const renderType=(type)=>{
+    const rows=data.filter(r=>strVal(r[c.type])===type).sort((a,b)=>Number(a[c.annee])-Number(b[c.annee]));
+    if(!rows.length) return '';
+    // Tableau avec montants détaillés Transport / Hébergement / Repas
+    const tableRows=rows.map(r=>{
+      const mt=n(r[c.mt]),tr=n(r[c.tr]),hb=n(r[c.hb]),rp=n(r[c.rp]);
+      // tr/hb/rp sont des % du total dans la table
+      const mtTr=mt?Math.round(mt*tr/100):0;
+      const mtHb=mt?Math.round(mt*hb/100):0;
+      const mtRp=mt?Math.round(mt*rp/100):0;
+      const bw=Math.round(mt/maxAll*100);
+      return`<tr>
+        <td class="bar-year" style="padding:3px 6px;font-size:11px;font-weight:700;color:var(--gris2);white-space:nowrap;">${r[c.annee]}</td>
+        <td style="padding:3px 6px;width:30%">
+          <div class="bar-outer" style="width:${bw}%"><div class="bar-seg bs-transport" style="width:${tr}%"></div><div class="bar-seg bs-heberg" style="width:${hb}%"></div><div class="bar-seg bs-repas" style="width:${rp}%"></div></div>
+        </td>
+        <td class="bar-total" style="padding:3px 8px;text-align:right;font-weight:700;white-space:nowrap;">${fmt(mt)} €</td>
+        <td style="padding:3px 6px;text-align:right;font-size:10.5px;color:#1351A8;white-space:nowrap;">${fmt(mtTr)} €</td>
+        <td style="padding:3px 6px;text-align:right;font-size:10.5px;color:#C05A00;white-space:nowrap;">${fmt(mtHb)} €</td>
+        <td style="padding:3px 6px;text-align:right;font-size:10.5px;color:#1A6B3C;white-space:nowrap;">${fmt(mtRp)} €</td>
+      </tr>`;
+    }).join('');
+    return`<div class="sub-title">${labels[type]}</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+      <thead><tr>
+        <th style="padding:3px 6px;font-size:9.5px;color:var(--gris3);font-weight:700;text-align:left;border-bottom:1px solid var(--bord);">Année</th>
+        <th style="padding:3px 6px;font-size:9.5px;color:var(--gris3);font-weight:700;border-bottom:1px solid var(--bord);">Répartition</th>
+        <th style="padding:3px 8px;font-size:9.5px;color:var(--gris3);font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">Total</th>
+        <th style="padding:3px 6px;font-size:9.5px;color:#1351A8;font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">Transport</th>
+        <th style="padding:3px 6px;font-size:9.5px;color:#C05A00;font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">Hébergement</th>
+        <th style="padding:3px 6px;font-size:9.5px;color:#1A6B3C;font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">Repas</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>`;
+  };
+  return`<div class="section full"><div class="sec-hdr"><span class="ico">✈️</span><h3>Frais de mission — 4 ans</h3></div><div class="sec-body">${types.map(t=>renderType(t)).join('')}<div class="legend"><div class="leg-item"><div class="leg-dot" style="background:#1351A8"></div>Transport</div><div class="leg-item"><div class="leg-dot" style="background:#C05A00"></div>Hébergement</div><div class="leg-item"><div class="leg-dot" style="background:#1A6B3C"></div>Repas</div></div>${renderCmt(cm,'fraisMission',_curId)}</div></div>`;
+}
+/* ════════════════════════════════════════════════════
+   BLOC INFORMATIQUE
+   Affiché pour DI, SCN, DR autonomes
+   4 années fixes (2022-2025) sans détail des filles
+   ETPT consolidé DI+DR pour les DI
+════════════════════════════════════════════════════ */
+function renderInformatique(s, cm_list){
+  if(!_fBySigle) fBuildIdx();
+  const c = CFG.c.IT;
+  const cm = cm_list.find(x => x[CFG.c.CM.bloc] === 'informatique');
+  const typeS = strVal(s[CFG.c.S.type]);
+  const sigle = strVal(s[CFG.c.S.sigle] || '').trim();
+
+  // Affiché uniquement pour DI, SCN, DR autonomes, Siège
+  const TYPES_IT = new Set(['DI','SCN','Siège','siège','SIEGE','DR']);
+  if(!TYPES_IT.has(typeS)) return '';
+
+  const ANNEES = [2022, 2023, 2024, 2025];
+  const itAll = D.informatique || [];
+  const rhAll = D.rh || [];
+
+  // Données informatiques pour cette structure
+  const itRows = itAll.filter(r => n(r[c.struct]) === s.id);
+  if(!itRows.length) return secEmpty('💻','Informatique',null,'','informatique');
+
+  // ETPT consolidé (DI = propre + filles DR)
+  function etptAnnee(annee){
+    var all = [s].concat(fDescendants(s));
+    var total = 0;
+    all.forEach(d => {
+      var row = rhAll.find(r => n(r[CFG.c.RH.struct]) === d.id && Number(r[CFG.c.RH.annee]) === annee);
+      if(row) total += Math.round(n(row[CFG.c.RH.etpt_tot]) || n(row[CFG.c.RH.etpt_su]) + n(row[CFG.c.RH.etpt_agco]));
+    });
+    return total;
+  }
+
+  // Données par année
+  var data = ANNEES.map(annee => {
+    var row = itRows.find(r => Number(r[c.annee]) === annee);
+    var etpt = etptAnnee(annee);
+    var dep = row ? n(row[c.dep]) : null;
+    var pcp = row ? n(row[c.pcp]) : null;
+    var pcb = row ? n(row[c.pcb]) : null;
+    var pctot = (pcp !== null && pcb !== null) ? pcp + pcb : null;
+    var taux = (pctot !== null && etpt > 0) ? (pctot / etpt * 100) : null;
+    return { annee, dep, pcp, pcb, pctot, etpt, taux };
+  });
+
+  var anneesConso = data.filter(d => d.dep !== null);
+
+  // Coût moyen 4 ans
+  var moyDep = anneesConso.length ? anneesConso.reduce((s,d)=>s+(d.dep||0),0)/anneesConso.length : 0;
+  var etptArr = anneesConso.map(d => d.etpt).filter(Boolean);
+  var moyEtpt = etptArr.length ? etptArr.reduce((a,b)=>a+b,0)/etptArr.length : 0;
+  var coutMoyen4ans = moyEtpt > 0 ? Math.round(moyDep / moyEtpt) : null;
+
+  // Taux équipement année la plus récente
+  var derniere = anneesConso[anneesConso.length - 1];
+  var tauxEquip = derniere ? derniere.taux : null;
+
+  // Moyennes de référence
+var mo = (D.moyennes || []).find(x => Number(x.Annee) === ANNEES[ANNEES.length-1]) 
+         || (D.moyennes || [])[0] 
+         || {};
+
+ // Détection Outremer fiable via la colonne Region
+var region = strVal(s[CFG.c.S.region] || '').trim();
+var isOM = (region === 'Outremer');
+
+
+  var refLabel, refDep, refTaux;
+
+  if(typeS === 'DI' || typeS === 'Siège' || ['siège','SIEGE'].includes(typeS)){
+    refLabel = 'Moy. DI';
+    refDep = nPct(mo[CFG.c.MO.info_dep_di]) || calculerMoyRef('DI', null);
+    refTaux = nPct(mo[CFG.c.MO.info_tx_di]) || calculerTauxRef('DI', null);
+  } else if(typeS === 'SCN'){
+    refLabel = 'Moy. SCN';
+    refDep = nPct(mo[CFG.c.MO.info_dep_scn]) || calculerMoyRef('SCN', null);
+    refTaux = nPct(mo[CFG.c.MO.info_tx_scn]) || calculerTauxRef('SCN', null);
+  } else {
+  refLabel = 'Moy. Outremer';
+  refDep = nPct(mo[CFG.c.MO.info_dep_om]) || calculerMoyRef('DR', null);
+  refTaux = nPct(mo[CFG.c.MO.info_tx_om]) || calculerTauxRef('DR', null);
+}
+
+
+  // Moyenne nationale (nouveau)
+  var refDepNat = nPct(mo[CFG.c.MO.info_dep_nat]) || calculerMoyRef(null, null);
+  var refTauxNat = nPct(mo[CFG.c.MO.info_tx_nat]) || calculerTauxRef(null, null);
+
+  // Tableau 4 années
+  var libelles = {
+    'Dépenses (€)': 'Dépenses (€)',
+    'PC Portable': 'PC Portable',
+    'PC Bureau': 'PC Bureau',
+    'Total PC': 'Total PC',
+    'ETPT': 'ETPT',
+    'Taux équip. (%)': 'Taux équip. (%)'
+  };
+
+  var tblCols = '<div class="info-annee-col"><div class="info-annee-hdr">Indicateur</div>'
+    + Object.values(libelles).map(l => '<div class="info-row-lbl">'+l+'</div>').join('')
+    + '</div>';
+
+  data.forEach(d => {
+    var vals = [
+      d.dep !== null ? fmt(Math.round(d.dep))+' €' : '—',
+      d.pcp !== null ? d.pcp : '—',
+      d.pcb !== null ? d.pcb : '—',
+      d.pctot !== null ? d.pctot : '—',
+      d.etpt || '—',
+      d.taux !== null ? d.taux.toFixed(1)+'%' : '—',
+    ];
+    tblCols += '<div class="info-annee-col">'
+      + '<div class="info-annee-hdr">'+d.annee+'</div>'
+      + vals.map(v => '<div class="info-annee-val">'+v+'</div>').join('')
+      + '</div>';
+  });
+
+  // Coloration KPI
+  var clsDep = refDep && coutMoyen4ans ? (coutMoyen4ans > refDep*1.1 ? 'rouge' : coutMoyen4ans < refDep*0.9 ? 'vert' : '') : '';
+  var clsTaux = refTaux && tauxEquip ? (tauxEquip < refTaux*0.9 ? 'rouge' : tauxEquip > refTaux*1.1 ? 'vert' : '') : '';
+
+  return `
+  <div class="section full">
+    <div class="sec-hdr"><span class="ico">💻</span><h3>Informatique bureautique</h3></div>
+    <div class="sec-body">
+
+      <div class="info-annees">${tblCols}</div>
+
+      <div class="info-indicateurs">
+
+        <div class="info-kpi-card">
+          <div class="info-kpi-val ${clsTaux}">${tauxEquip!==null?tauxEquip.toFixed(1)+'%':'—'}</div>
+          <div class="info-kpi-lbl">Taux d'équipement (${ANNEES[ANNEES.length-1]})</div>
+          <div class="info-ref">
+            <span class="info-ref-item"><span class="info-ref-dot type"></span>${refLabel} : ${refTaux?refTaux.toFixed(1)+'%':'—'}</span>
+            <span class="info-ref-item"><span class="info-ref-dot nat"></span>Moy. nationale : ${refTauxNat?refTauxNat.toFixed(1)+'%':'—'}</span>
+          </div>
+        </div>
+
+        <div class="info-kpi-card">
+          <div class="info-kpi-val ${clsDep}">${coutMoyen4ans!==null?fmt(coutMoyen4ans)+' €':'—'}</div>
+          <div class="info-kpi-lbl">Coût moyen par ETPT (2022-2025)</div>
+          <div class="info-ref">
+            <span class="info-ref-item"><span class="info-ref-dot type"></span>${refLabel} : ${refDep?fmt(Math.round(refDep))+' €':'—'}</span>
+            <span class="info-ref-item"><span class="info-ref-dot nat"></span>Moy. nationale : ${refDepNat?fmt(Math.round(refDepNat))+' €':'—'}</span>
+          </div>
+        </div>
+
+      </div>
+
+      ${(cm?renderCmt(cm,'informatique',_curId):'')}
+
+    </div>
+  </div>`;
+}
+
+
+/* Calcule dynamiquement la moyenne de référence pour un type de structure */
+function calculerMoyRef(typeRef, siglesOM){
+  var c=CFG.c.IT, rhC=CFG.c.RH;
+  var ANNEES=[2022,2023,2024,2025];
+var structs = (D.structures || []).filter(function(s){
+  var region = strVal(s[CFG.c.S.region] || '').trim();
+
+  if(typeRef === 'DI') return strVal(s[CFG.c.S.type]) === 'DI';
+  if(typeRef === 'SCN') return strVal(s[CFG.c.S.type]) === 'SCN';
+  if(typeRef === 'DR') return region === 'Outremer';   // ⭐ nouveau périmètre OM
+
+  if(typeRef === null) return true; // national
+});
+
+  var vals=[];
+  structs.forEach(function(s){
+    var anneesConso=ANNEES.filter(function(a){
+      return (D.informatique||[]).some(function(r){return n(r[c.struct])===s.id&&Number(r[c.annee])===a;});
+    });
+    if(!anneesConso.length) return;
+    var all=[s].concat(fDescendants(s));
+    var moyDep=anneesConso.reduce(function(tot,a){
+      var row=(D.informatique||[]).find(function(r){return n(r[c.struct])===s.id&&Number(r[c.annee])===a;});
+      return tot+(row?n(row[c.dep]):0);
+    },0)/anneesConso.length;
+    var etptArr=anneesConso.map(function(a){
+      return all.reduce(function(t,d){
+        var rh=(D.rh||[]).find(function(r){return n(r[rhC.struct])===d.id&&Number(r[rhC.annee])===a;});
+        return t+(rh?Math.round(n(rh[rhC.etpt_tot])||n(rh[rhC.etpt_su])+n(rh[rhC.etpt_agco])):0);
+      },0);
+    }).filter(Boolean);
+    var moyEtpt=etptArr.length?etptArr.reduce(function(a,b){return a+b;},0)/etptArr.length:0;
+    if(moyEtpt>0) vals.push(moyDep/moyEtpt);
+  });
+  return vals.length?vals.reduce(function(a,b){return a+b;},0)/vals.length:0;
+}
+
+function calculerTauxRef(typeRef, siglesOM){
+  var c=CFG.c.IT, rhC=CFG.c.RH;
+ var structs = (D.structures || []).filter(function(s){
+  var region = strVal(s[CFG.c.S.region] || '').trim();
+
+  if(typeRef === 'DI') return strVal(s[CFG.c.S.type]) === 'DI';
+  if(typeRef === 'SCN') return strVal(s[CFG.c.S.type]) === 'SCN';
+  if(typeRef === 'DR') return region === 'Outremer';   // ⭐ nouveau périmètre OM
+
+  if(typeRef === null) return true; // national
+});
+
+  var vals=[];
+  structs.forEach(function(s){
+    var dernierRow=(D.informatique||[]).filter(function(r){return n(r[c.struct])===s.id;})
+      .sort(function(a,b){return Number(b[c.annee])-Number(a[c.annee]);})[0];
+    if(!dernierRow) return;
+    var annee=Number(dernierRow[c.annee]);
+    var all=[s].concat(fDescendants(s));
+    var etpt=all.reduce(function(t,d){
+      var rh=(D.rh||[]).find(function(r){return n(r[rhC.struct])===d.id&&Number(r[rhC.annee])===annee;});
+      return t+(rh?Math.round(n(rh[rhC.etpt_tot])||n(rh[rhC.etpt_su])+n(rh[rhC.etpt_agco])):0);
+    },0);
+    var pctot=n(dernierRow[c.pcp])+n(dernierRow[c.pcb]);
+    if(etpt>0) vals.push(pctot/etpt*100);
+  });
+  return vals.length?vals.reduce(function(a,b){return a+b;},0)/vals.length:0;
+}
+
+
+function renderDRBlock(drs,indicateur){
+  if(!drs.length) return '';
+  const uid='dr-'+indicateur+'-'+Math.random().toString(36).slice(2,7);
+  const drContent=drs.map(dr=>{
+    const drId=dr.id; let detail='';
+    if(indicateur==='contentieux'){const d=(D.contentieux||[]).find(r=>r[CFG.c.CT.struct]==drId);if(d)detail=`Dossiers : <strong>${d[CFG.c.CT.nb]||0}</strong> | Cannabis : ${fmtD(d[CFG.c.CT.cannabis])} kg | Cocaïne : ${fmtD(d[CFG.c.CT.cocaine])} kg | Tabac : ${fmtD(d[CFG.c.CT.tabac])} kg`;}
+    else if(indicateur==='rh'){const d=(D.rh||[]).find(r=>r[CFG.c.RH.struct]==drId);if(d)detail=`Effectifs : <strong>${d[CFG.c.RH.rem]||0}/${d[CFG.c.RH.cib]||0}</strong> | MS : ${fmt(d[CFG.c.RH.ms]||0)} € | Âge moy : ${fmtD(d[CFG.c.RH.age]||0)} ans`;}
+    else if(indicateur==='vehicules'){const d=(D.vehicules||[]).find(r=>r[CFG.c.VH.struct]==drId);if(d)detail=`Véhicules : <strong>${d[CFG.c.VH.nb]||0}</strong> | Vétusté : ${d[CFG.c.VH.vet_s]||0}% (nat. ${d[CFG.c.VH.vet_n]||0}%) | Véh./agent : ${n(d[CFG.c.VH.vpa_s]).toFixed(2)}`;}
+    return`<div class="dr-item"><div class="dr-name"><span class="badge b-DR">DR</span> ${dr[CFG.c.S.nom]}</div>${detail?`<div style="font-size:11.5px;color:var(--gris2);margin-top:3px">${detail}</div>`:'<div class="no-data" style="padding:4px">Pas de données</div>'}</div>`;
+  }).join('');
+  return`<div class="dr-toggle" onclick="toggleDR('${uid}')">▶ Détail par Direction Régionale (${drs.length})</div><div class="dr-list" id="${uid}">${drContent}</div>`;
+}
+function toggleDR(uid){const el=document.getElementById(uid);const tog=el.previousElementSibling;el.classList.toggle('open');tog.textContent=(el.classList.contains('open')?'▼':'▶')+tog.textContent.slice(1);}
+function renderCmt(cm, bloc, structId) {
+  const txt = cm ? cm[CFG.c.CM.txt] : '';
+  const cmId = cm ? cm.id : null;
+  // Date de dernière modification (colonne DateMAJ dans Commentaires)
+  const majRaw = cm ? cm[CFG.c.CM.maj] : null;
+  const majStr = majRaw ? (function(){
+    try {
+      const d = new Date(majRaw);
+      return isNaN(d.getTime()) ? majRaw : d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+    } catch(e){ return String(majRaw); }
+  })() : '';
+  const uid = 'cmt-' + bloc + '-' + (structId||0);
+  const canEdit = typeof grist !== 'undefined' && typeof grist.docApi !== 'undefined';
+  const editBtn = canEdit
+    ? `<button class="edit-btn" onclick="toggleEdit('${uid}')" title="Modifier">✏️</button>`
+    : '';
+  return `<div class="comment-zone">
+    <div class="comment-label"><span>💬 Commentaire${majStr?' <span style="font-size:9.5px;color:var(--gris3);font-weight:400;margin-left:6px;">modifié le '+majStr+'</span>':''}</span>${editBtn}</div>
+    <div class="comment-text" id="${uid}-text">${txt||'<span class="comment-empty">Aucun commentaire.</span>'}</div>
+    <div class="edit-zone" id="${uid}-zone">
+      <textarea class="edit-textarea" id="${uid}-ta" rows="3">${txt||''}</textarea>
+      <div class="edit-actions">
+        <button class="btn-save" onclick="saveComment('${uid}','${bloc}',${structId},${cmId})">💾 Enregistrer</button>
+        <button class="btn-cancel-edit" onclick="toggleEdit('${uid}')">Annuler</button>
+        <span class="save-msg" id="${uid}-msg">✅ Sauvegardé</span>
+      </div>
+    </div>
+  </div>`;
+}
+function secEmpty(ico,titre,cm,cls='',bloc=''){return`<div class="section ${cls}"><div class="sec-hdr"><span class="ico">${ico}</span><h3>${titre}</h3></div><div class="sec-body"><div class="no-data">Aucune donnée.</div>${renderCmt(cm,bloc,_curId)}</div></div>`;}
+
+/* utilitaires — voir définitions en tête de script */
+
+/* ════════════════════════════════════════════════════
+   ÉDITION INLINE — commentaires et points d'attention
+════════════════════════════════════════════════════ */
+
+function toggleEdit(uid) {
+  const zone = document.getElementById(uid + '-zone');
+  if (!zone) return;
+  zone.classList.toggle('open');
+  if (zone.classList.contains('open')) {
+    const ta = document.getElementById(uid + '-ta');
+    if (ta) ta.focus();
+  }
+}
+
+function toggleAttnEdit() {
+  const zone = document.getElementById('attn-edit-zone');
+  if (zone) zone.classList.toggle('open');
+}
+
+async function saveComment(uid, bloc, structId, cmId) {
+  const ta  = document.getElementById(uid + '-ta');
+  const msg = document.getElementById(uid + '-msg');
+  const btn = document.querySelector(`#${uid}-zone .btn-save`);
+  if (!ta) return;
+  const newTxt = ta.value.trim();
+  if (btn) btn.disabled = true;
+
+  try {
+    if (!grist || !grist.docApi) throw new Error('docApi non disponible');
+    const tableName = CFG.tables.commentaires;
+
+    if (cmId && cmId !== 'null') {
+      // Mise à jour de la ligne existante
+      const today=new Date().toISOString().slice(0,10);
+      await grist.docApi.applyUserActions([
+        ['UpdateRecord', tableName, parseInt(cmId), { [CFG.c.CM.txt]: newTxt, [CFG.c.CM.maj]: today }]
+      ]);
+    } else {
+      // Création d'une nouvelle ligne
+      const today2=new Date().toISOString().slice(0,10);
+      await grist.docApi.applyUserActions([
+        ['AddRecord', tableName, null, {
+          [CFG.c.CM.struct]: structId,
+          [CFG.c.CM.bloc]:   bloc,
+          [CFG.c.CM.txt]:    newTxt,
+          [CFG.c.CM.maj]:    today2
+        }]
+      ]);
+    }
+
+    // Mettre à jour l'affichage sans recharger toute la fiche
+    const display = document.getElementById(uid + '-text');
+    if (display) display.innerHTML = newTxt || '<span class="comment-empty">Aucun commentaire.</span>';
+
+    // Mettre à jour D.commentaires en mémoire
+    const idx = (D.commentaires || []).findIndex(r => r.id == cmId);
+    if (idx >= 0) D.commentaires[idx][CFG.c.CM.txt] = newTxt;
+    else if (structId) D.commentaires = (D.commentaires||[]).concat([{
+      id: Date.now(), [CFG.c.CM.struct]: structId, [CFG.c.CM.bloc]: bloc, [CFG.c.CM.txt]: newTxt
+    }]);
+
+    if (msg) { msg.classList.add('show'); setTimeout(() => msg.classList.remove('show'), 2500); }
+    toggleEdit(uid);
+  } catch(e) {
+    alert('Erreur lors de la sauvegarde : ' + (e.message || e));
+  }
+  if (btn) btn.disabled = false;
+}
+
+async function savePointsAttn(cmId) {
+  const taTxt      = document.getElementById('attn-ta-txt');
+  const taChantiers= document.getElementById('attn-ta-chantiers');
+  const msg        = document.getElementById('attn-save-msg');
+  const btn        = document.querySelector('#attn-edit-zone .btn-save');
+  if (!taTxt || !taChantiers) return;
+  if (btn) btn.disabled = true;
+
+  const newTxt = taTxt.value.trim();
+  const newChantiers = taChantiers.value.split('\n').map(l => l.trim()).filter(Boolean);
+
+  try {
+    if (!grist || !grist.docApi) throw new Error('docApi non disponible');
+    const tableName = CFG.tables.commentaires;
+    const actions = [];
+
+    // Sauvegarder le texte de synthèse
+    if (cmId && cmId !== 'null') {
+      actions.push(['UpdateRecord', tableName, parseInt(cmId), { [CFG.c.CM.txt]: newTxt }]);
+    } else {
+      actions.push(['AddRecord', tableName, null, {
+        [CFG.c.CM.struct]: _curId, [CFG.c.CM.bloc]: 'pointsAttention', [CFG.c.CM.txt]: newTxt
+      }]);
+    }
+
+    // Supprimer les anciens chantiers et recréer
+    const oldChantiers = (D.commentaires||[]).filter(r =>
+      r[CFG.c.CM.struct] == _curId && r[CFG.c.CM.bloc] === 'chantier');
+    oldChantiers.forEach(r => actions.push(['RemoveRecord', tableName, r.id]));
+    newChantiers.forEach(ch => actions.push(['AddRecord', tableName, null, {
+      [CFG.c.CM.struct]: _curId, [CFG.c.CM.bloc]: 'chantier', [CFG.c.CM.txt]: ch
+    }]));
+
+    await grist.docApi.applyUserActions(actions);
+
+    // Mettre à jour l'affichage
+    document.getElementById('attn-display').innerHTML = newTxt || '<em style="color:#9A7A20">Aucun point d&#39;attention.</em>';
+    const listEl = document.getElementById('attn-chantiers-list');
+    if (listEl) listEl.innerHTML = newChantiers.map(ch =>
+      '<span class="chantier-pill">&#128295; ' + ch + '</span>').join('') ||
+      '<span style="font-size:10.5px;color:#9A7A20;font-style:italic">Aucun chantier.</span>';
+
+    // Mettre à jour D.commentaires en mémoire
+    D.commentaires = (D.commentaires||[]).filter(r =>
+      !(r[CFG.c.CM.struct] == _curId && r[CFG.c.CM.bloc] === 'chantier'));
+    if (cmId && cmId !== 'null') {
+      const idx = D.commentaires.findIndex(r => r.id == cmId);
+      if (idx >= 0) D.commentaires[idx][CFG.c.CM.txt] = newTxt;
+    }
+    newChantiers.forEach((ch, i) => D.commentaires.push({
+      id: Date.now()+i, [CFG.c.CM.struct]: _curId, [CFG.c.CM.bloc]: 'chantier', [CFG.c.CM.txt]: ch
+    }));
+
+    if (msg) { msg.classList.add('show'); setTimeout(() => msg.classList.remove('show'), 2500); }
+    toggleAttnEdit();
+  } catch(e) {
+    alert('Erreur : ' + (e.message || String(e)));
+  }
+  if (btn) btn.disabled = false;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   PANNEAU DE DIAGNOSTIC INTÉGRÉ
+   Bouton 🔧 dans la toolbar — affiche état de chaque table
+═══════════════════════════════════════════════════════ */
+function openDiag(){
+  const existing = document.getElementById('diag-panel');
+  if(existing){ existing.remove(); return; }
+
+  // Mapping clé interne → clé CFG.c
+  // Mapping clé D[] → clé CFG.c[] (doit refléter exactement la structure de CFG.c)
+  const cMap = {
+    structures: 'S',
+    contentieux: 'CT',
+    budget: 'B',
+    rh: 'RH',
+    immobilier: 'IM',
+    vehicules: 'VH',
+    fraisMission: 'FM',
+    commentaires: 'CM',
+  };
+
+  let lines = '<h3 style="margin-bottom:12px;color:#002F6C;font-size:14px">🔧 Diagnostic des données Grist</h3>';
+  lines += '<p style="font-size:11px;color:#4A5A6A;margin-bottom:14px">Vérifiez que chaque table est chargée et que les colonnes correspondent aux noms attendus dans CFG.c.</p>';
+
+  for(const [key, tableName] of Object.entries(CFG.tables)){
+    const data = D[key]||[];
+    const ok = data.length > 0;
+    const icon = ok ? '✅' : '❌';
+
+    // Colonnes attendues vs réelles
+    const cKey = cMap[key];
+    const expectedCols = cKey ? Object.values(CFG.c[cKey]||{}) : [];
+    let colWarn = '';
+    if(ok && expectedCols.length){
+      const actualCols = Object.keys(data[0]);
+      const missing = expectedCols.filter(c=>c!=='id'&&!actualCols.includes(c));
+      if(missing.length){
+        colWarn = '<div style="color:#C05A00;font-size:10.5px;padding:4px 12px;background:#FFF8F0">⚠️ Colonnes attendues manquantes : '+missing.join(', ')+'</div>';
+      }
+    }
+
+    const sample = ok
+      ? 'Colonnes : '+Object.keys(data[0]).join(', ')
+      : 'Aucune donnée — vérifiez le nom dans CFG.tables';
+
+    lines += '<div style="margin-bottom:9px;border:1px solid #CDD6E4;border-radius:6px;overflow:hidden;">'
+      +'<div style="padding:7px 12px;background:'+(ok?'#EFF7F0':'#FFF0F0')+';display:flex;align-items:center;gap:8px;">'
+      +'<span>'+icon+'</span><strong style="font-size:12.5px">'+tableName+'</strong>'
+      +'<span style="font-size:11px;color:#4A5A6A;margin-left:auto">'+data.length+' ligne(s)</span>'
+      +'</div>'+colWarn
+      +'<div style="padding:6px 12px;font-size:10.5px;color:#8A9BAA;font-family:monospace;word-break:break-all;background:#fafafa;">'
+      +sample+'</div></div>';
+  }
+
+  lines += '<div style="margin-top:12px;padding:10px 14px;background:#E6ECF8;border-radius:6px;font-size:11px;color:#002F6C;">'
+    +'<strong>Si une table est vide ou ❌ :</strong><br>'
+    +'① Vérifiez le nom exact dans Grist (sensible à la casse)<br>'
+    +'② Mettez à jour <code>CFG.tables</code> dans le fichier HTML<br>'
+    +'&#9314; Niveau d\'acces du widget = <strong>Acces complet au document</strong><br>'
+    +'④ Colonne "Structure" = type <em>Reference → Structures</em> dans Grist'
+    +'</div>';
+
+  const panel = document.createElement('div');
+  panel.id = 'diag-panel';
+  panel.style.cssText = 'position:fixed;top:52px;right:16px;z-index:9000;width:600px;max-width:95vw;max-height:80vh;background:#fff;border:2px solid #002F6C;border-radius:10px;box-shadow:0 8px 32px rgba(0,20,70,.25);overflow-y:auto;padding:18px 20px;';
+  panel.innerHTML = lines;
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕ Fermer';
+  closeBtn.style.cssText = 'position:absolute;top:12px;right:14px;background:#EEF2F7;border:1px solid #CDD6E4;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11.5px;';
+  closeBtn.onclick = ()=>panel.remove();
+  panel.appendChild(closeBtn);
+  document.body.appendChild(panel);
+}
+
+window.addEventListener('load',initGrist);
+</script>
+</body>
+</html>
