@@ -8,8 +8,8 @@
 
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 
-<!-- Marianne officielle -->
-<link rel="stylesheet" href="https://www.systeme-de-design.gouv.fr/dist/fonts/Marianne/marianne.css">
+<!-- Police Marianne -->
+<link href="https://fonts.googleapis.com/css2?family=Marianne:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
 
@@ -17,12 +17,31 @@
 body {
   font-family: "Marianne", Arial, sans-serif;
   margin: 20px;
-  background: #fff;
+  background: #f5f7fb;
 }
 
 .tb-budg-container {
   max-width: 1200px;
   margin: auto;
+}
+
+/* ===== CARD ===== */
+.tb-card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+
+.tb-card-header {
+  padding: 14px 18px;
+  font-weight: 600;
+  background: #eef2f7;
+  border-bottom: 1px solid #d6dde8;
+}
+
+.tb-card-body {
+  padding: 10px;
 }
 
 /* ===== KPI ===== */
@@ -34,11 +53,12 @@ body {
 
 .kpi-pill {
   border-radius: 999px;
-  padding: 12px 18px;
-  min-width: 160px;
+  padding: 10px 16px;
+  min-width: 140px;
   text-align: center;
   font-weight: 600;
   background:#e8f5e9;
+  color:#1b5e20;
 }
 
 /* ===== TABLE ===== */
@@ -51,31 +71,38 @@ body {
 .tb-budg-table th,
 .tb-budg-table td {
   border:1px solid #d6dde8;
-  padding:8px;
+  padding:6px 8px;
 }
 
 .tb-budg-table th {
   background:#e3e8f0;
+  text-align:left;
 }
 
-/* niveaux */
-.lvl1 td { background:#e3e8f0; font-weight:bold; cursor:pointer; }
-.lvl2 td { background:#f1f4f9; cursor:pointer; }
+.lvl1 td { background:#e3e8f0; font-weight:bold; }
+.lvl2 td { background:#f1f4f9; }
 .lvl3 td { background:#ffffff; }
 
-.hidden { display:none; }
+tfoot td {
+  font-weight:700;
+  background:#d6dde8;
+}
+
+/* ===== ACCORDION ===== */
+
+.lvl1, .lvl2 { cursor: pointer; }
+.hidden { display: none; }
+
+.lvl1 td:first-child::before { content: "▶ "; font-size:10px; }
+.lvl1.open td:first-child::before { content: "▼ "; }
+
+.lvl2 td:first-child::before { content: "▶ "; font-size:10px; }
+.lvl2.open td:first-child::before { content: "▼ "; }
 
 /* indentation */
-.lvl1 td:first-child { padding-left:12px; }
-.lvl2 td:first-child { padding-left:28px; }
-.lvl3 td:first-child { padding-left:48px; }
-
-/* flèches */
-.lvl1 td:first-child::before { content:"▶ "; }
-.lvl1.open td:first-child::before { content:"▼ "; }
-
-.lvl2 td:first-child::before { content:"▶ "; }
-.lvl2.open td:first-child::before { content:"▼ "; }
+.lvl1 td:first-child { padding-left: 12px; }
+.lvl2 td:first-child { padding-left: 28px; }
+.lvl3 td:first-child { padding-left: 48px; }
 
 </style>
 </head>
@@ -88,46 +115,52 @@ body {
 
 <!-- KPI -->
 <div class="tb-budg-kpis">
-  <div class="kpi-pill">AE : <span id="kpi-ae">0</span></div>
-  <div class="kpi-pill">CP : <span id="kpi-cp">0</span></div>
+  <div class="kpi-pill">AE : <span id="kpi-ae">0</span> M€</div>
+  <div class="kpi-pill">CP : <span id="kpi-cp">0</span> M€</div>
 </div>
 
-<!-- TABLE -->
-<table class="tb-budg-table">
-<thead>
-<tr>
-  <th>Brique / Sous-brique / Activité</th>
-  <th>AE consommées</th>
-  <th>CP consommés</th>
-</tr>
-</thead>
+<!-- CARD -->
+<div class="tb-card">
 
-<tbody id="tbody"></tbody>
+  <div class="tb-card-header">
+    💰 Suivi de la consommation par brique budgétaire
+  </div>
 
-<tfoot>
-<tr>
-  <td><strong>TOTAL</strong></td>
-  <td id="total-ae">0</td>
-  <td id="total-cp">0</td>
-</tr>
-</tfoot>
+  <div class="tb-card-body">
 
-</table>
+    <table class="tb-budg-table">
+      <thead>
+        <tr>
+          <th>Brique / Sous-brique / Activité</th>
+          <th>AE consommées (M€)</th>
+          <th>CP consommés (M€)</th>
+        </tr>
+      </thead>
+
+      <tbody id="tbody"></tbody>
+
+      <tfoot>
+        <tr>
+          <td>TOTAL</td>
+          <td id="total-ae">0</td>
+          <td id="total-cp">0</td>
+        </tr>
+      </tfoot>
+    </table>
+
+  </div>
+
+</div>
 
 </div>
 
 <script>
 
-/* ===== FORMAT M€ ===== */
-function formatMillions(val){
-  return (val / 1_000_000).toLocaleString('fr-FR', {
-    minimumFractionDigits:1,
-    maximumFractionDigits:1
-  }) + " M€";
-}
-
-/* ===== GRIST ===== */
 grist.ready({requiredAccess: 'read table'});
+
+function toMillions(val) {
+  return (val / 1_000_000).toFixed(2);
+}
 
 grist.onRecords(function(records) {
 
@@ -147,7 +180,7 @@ grist.onRecords(function(records) {
     if (!agg[brique]) agg[brique] = {};
     if (!agg[brique][sous]) agg[brique][sous] = {};
     if (!agg[brique][sous][act]) {
-      agg[brique][sous][act] = { AE:0, CP:0 };
+      agg[brique][sous][act] = { AE: 0, CP: 0 };
     }
 
     agg[brique][sous][act].AE += AE;
@@ -157,7 +190,6 @@ grist.onRecords(function(records) {
     totalCP += CP;
   });
 
-  /* ===== RENDER ===== */
   const tbody = document.getElementById("tbody");
   let html = "";
 
@@ -167,17 +199,17 @@ grist.onRecords(function(records) {
     let briqueCP = 0;
 
     Object.values(souss).forEach(acts => {
-      Object.values(acts).forEach(v => {
-        briqueAE += v.AE;
-        briqueCP += v.CP;
+      Object.values(acts).forEach(val => {
+        briqueAE += val.AE;
+        briqueCP += val.CP;
       });
     });
 
     html += `
     <tr class="lvl1" data-brique="${i}">
       <td>${brique}</td>
-      <td>${formatMillions(briqueAE)}</td>
-      <td>${formatMillions(briqueCP)}</td>
+      <td>${toMillions(briqueAE)}</td>
+      <td>${toMillions(briqueCP)}</td>
     </tr>`;
 
     Object.entries(souss).forEach(([sous, acts], j) => {
@@ -185,25 +217,24 @@ grist.onRecords(function(records) {
       let sousAE = 0;
       let sousCP = 0;
 
-      Object.values(acts).forEach(v => {
-        sousAE += v.AE;
-        sousCP += v.CP;
+      Object.values(acts).forEach(val => {
+        sousAE += val.AE;
+        sousCP += val.CP;
       });
 
       html += `
       <tr class="lvl2 hidden" data-parent="${i}" data-sous="${i}-${j}">
         <td>${sous}</td>
-        <td>${formatMillions(sousAE)}</td>
-        <td>${formatMillions(sousCP)}</td>
+        <td>${toMillions(sousAE)}</td>
+        <td>${toMillions(sousCP)}</td>
       </tr>`;
 
-      Object.entries(acts).forEach(([act, v]) => {
-
+      Object.entries(acts).forEach(([act, val]) => {
         html += `
         <tr class="lvl3 hidden" data-parent="${i}-${j}">
           <td>${act}</td>
-          <td>${formatMillions(v.AE)}</td>
-          <td>${formatMillions(v.CP)}</td>
+          <td>${toMillions(val.AE)}</td>
+          <td>${toMillions(val.CP)}</td>
         </tr>`;
       });
 
@@ -213,15 +244,14 @@ grist.onRecords(function(records) {
 
   tbody.innerHTML = html;
 
-  /* ===== ACCORDION ===== */
-
+  /* ACCORDION */
   document.querySelectorAll(".lvl1").forEach(row => {
     row.onclick = () => {
       const id = row.dataset.brique;
-      const open = row.classList.toggle("open");
+      const isOpen = row.classList.toggle("open");
 
       document.querySelectorAll(`.lvl2[data-parent='${id}']`)
-        .forEach(el => el.classList.toggle("hidden", !open));
+        .forEach(el => el.classList.toggle("hidden", !isOpen));
 
       document.querySelectorAll(`.lvl3`)
         .forEach(el => {
@@ -239,18 +269,19 @@ grist.onRecords(function(records) {
     row.onclick = (e) => {
       e.stopPropagation();
       const id = row.dataset.sous;
-      const open = row.classList.toggle("open");
+      const isOpen = row.classList.toggle("open");
 
       document.querySelectorAll(`.lvl3[data-parent='${id}']`)
-        .forEach(el => el.classList.toggle("hidden", !open));
+        .forEach(el => el.classList.toggle("hidden", !isOpen));
     };
   });
 
-  /* ===== KPI ===== */
-  document.getElementById("kpi-ae").innerText = formatMillions(totalAE);
-  document.getElementById("kpi-cp").innerText = formatMillions(totalCP);
-  document.getElementById("total-ae").innerText = formatMillions(totalAE);
-  document.getElementById("total-cp").innerText = formatMillions(totalCP);
+  /* KPI */
+  document.getElementById("kpi-ae").innerText = toMillions(totalAE);
+  document.getElementById("kpi-cp").innerText = toMillions(totalCP);
+
+  document.getElementById("total-ae").innerText = toMillions(totalAE);
+  document.getElementById("total-cp").innerText = toMillions(totalCP);
 
 });
 
