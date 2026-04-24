@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Conso par brique</title>
+
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f8fafc;
+  margin: 20px;
+}
+
+.container {
+  max-width: 900px;
+  margin: auto;
+}
+
+h2 {
+  margin-bottom: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+th, td {
+  padding: 10px;
+  border: 1px solid #d6dde8;
+  text-align: center;
+}
+
+th {
+  background: #e3e8f0;
+}
+
+td:first-child, th:first-child {
+  text-align: left;
+  font-weight: 600;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h2>Consommation par brique</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Brique</th>
+        <th>AE consommées</th>
+        <th>CP consommés</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script>
+
+/* ===== SAFE NUMBER PARSER (important pour Grist) ===== */
+function toNumber(val) {
+  if (val === null || val === undefined) return 0;
+
+  // cas string "1 200", "1200", etc.
+  if (typeof val === "string") {
+    val = val.replace(/\s/g, "").replace(",", ".");
+  }
+
+  const num = Number(val);
+  return isNaN(num) ? 0 : num;
+}
+
+/* ===== AGRÉGATION ===== */
+function compute(records) {
+  const agg = {};
+
+  records.forEach(r => {
+    const brique = r.brique || "Non renseigné";
+
+    if (!agg[brique]) {
+      agg[brique] = { AE: 0, CP: 0 };
+    }
+
+    agg[brique].AE += toNumber(r.AE);
+    agg[brique].CP += toNumber(r.CP);
+  });
+
+  return agg;
+}
+
+/* ===== RENDER ===== */
+function render(data) {
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = "";
+
+  Object.keys(data).forEach(brique => {
+    const row = data[brique];
+
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${brique}</td>
+      <td>${row.AE.toLocaleString("fr-FR")}</td>
+      <td>${row.CP.toLocaleString("fr-FR")}</td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* ===== GRIST INIT ===== */
+grist.ready({
+  requiredAccess: 'read table'
+});
+
+/* ⚠️ IMPORTANT : fetch explicite (plus fiable que onRecords) */
+grist.onRecords((records) => {
+  console.log("Records :", records);
+
+  const data = compute(records);
+
+  console.log("Agrégé :", data);
+
+  render(data);
+});
+
+</script>
+
+</body>
+</html>
