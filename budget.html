@@ -161,60 +161,78 @@ grist.onRecords(function(records) {
   console.log("Agrégé:", agg);
 
   /* ===== RENDER ===== */
-  const tbody = document.getElementById("tbody");
-  tbody.innerHTML = "";
+ const tbody = document.getElementById("tbody");
 
-  Object.entries(agg).forEach(([brique, souss]) => {
+let html = "";
 
-    let briqueAE = 0;
-    let briqueCP = 0;
+Object.entries(agg).forEach(([brique, souss]) => {
 
-    Object.entries(souss).forEach(([sous, acts]) => {
+  let briqueAE = 0;
+  let briqueCP = 0;
 
-      let sousAE = 0;
-      let sousCP = 0;
+  html += `
+  <tr class="lvl1">
+    <td>${brique}</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>`;
 
-      Object.entries(acts).forEach(([act, val]) => {
+  Object.entries(souss).forEach(([sous, acts]) => {
 
-        sousAE += val.AE;
-        sousCP += val.CP;
+    let sousAE = 0;
+    let sousCP = 0;
 
-        const tr = `
-        <tr class="lvl3">
-          <td></td>
-          <td></td>
-          <td>${act}</td>
-          <td>${val.AE.toLocaleString()}</td>
-          <td>${val.CP.toLocaleString()}</td>
-        </tr>`;
-        tbody.insertAdjacentHTML("beforeend", tr);
-      });
+    html += `
+    <tr class="lvl2">
+      <td></td>
+      <td>${sous}</td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>`;
 
-      briqueAE += sousAE;
-      briqueCP += sousCP;
+    Object.entries(acts).forEach(([act, val]) => {
 
-      const trSous = `
-      <tr class="lvl2">
+      sousAE += val.AE;
+      sousCP += val.CP;
+
+      html += `
+      <tr class="lvl3">
         <td></td>
-        <td>${sous}</td>
         <td></td>
-        <td>${sousAE.toLocaleString()}</td>
-        <td>${sousCP.toLocaleString()}</td>
+        <td>${act}</td>
+        <td>${val.AE.toLocaleString()}</td>
+        <td>${val.CP.toLocaleString()}</td>
       </tr>`;
-      tbody.insertAdjacentHTML("afterbegin", trSous);
     });
 
-    const trBrique = `
-    <tr class="lvl1">
-      <td>${brique}</td>
+    briqueAE += sousAE;
+    briqueCP += sousCP;
+
+    html += `
+    <tr class="lvl2">
       <td></td>
+      <td><strong>Total ${sous}</strong></td>
       <td></td>
-      <td>${briqueAE.toLocaleString()}</td>
-      <td>${briqueCP.toLocaleString()}</td>
+      <td><strong>${sousAE.toLocaleString()}</strong></td>
+      <td><strong>${sousCP.toLocaleString()}</strong></td>
     </tr>`;
-    tbody.insertAdjacentHTML("afterbegin", trBrique);
   });
 
+  html += `
+  <tr class="lvl1">
+    <td><strong>Total ${brique}</strong></td>
+    <td></td>
+    <td></td>
+    <td><strong>${briqueAE.toLocaleString()}</strong></td>
+    <td><strong>${briqueCP.toLocaleString()}</strong></td>
+  </tr>`;
+});
+
+/* injection propre */
+tbody.innerHTML = html;
   /* ===== KPI ===== */
   document.getElementById("kpi-ae").innerText = totalAE.toLocaleString();
   document.getElementById("kpi-cp").innerText = totalCP.toLocaleString();
