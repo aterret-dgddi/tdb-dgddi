@@ -546,6 +546,47 @@ function onDrop(e) {
   var f = e.dataTransfer.files[0];
   if (f) traiterFichier(f);
 }
+function lireCSV(file){
+  setStatus('Lecture du fichier...', false);
+  
+  var config = {
+    complete: function(results) {
+      G.rawRows = results.data.filter(function(r){ return Object.values(r).some(function(v){ return v !== null && v !== ''; }); });
+      G.colsDetectees = results.meta.fields || Object.keys(G.rawRows[0] || {});
+      setStatus('Fichier chargé : ' + G.rawRows.length + ' lignes', true);
+      log('Colonnes détectées : ' + G.colsDetectees.join(', '), 'log-info');
+      
+      // Mode FM : pré-remplir les sélecteurs avec les colonnes attendues
+      if(G.modeFraisMission){
+        document.getElementById('col-source').value = detectCol(['Service','Structure','service','structure']);
+        document.getElementById('col-annee').value = detectCol(['Année budgétaire','Annee','Année','annee']);
+        // Colonnes spéciales FM (stockées dans G pour genererPreview)
+        G.colTypeMission = detectCol(['NatureMission','Type mission','TypeMission','nature_mission']);
+        G.colNatureFrais = detectCol(['Naturefrais','Nature frais','NatureFrais','nature_frais']);
+        G.colValeur = detectCol(['Valeur','Montant','valeur','montant']);
+        console.log('[lireCSV FM] Colonnes détectées:', G.colTypeMission, G.colNatureFrais, G.colValeur);
+        log('Mode Frais de mission : colonnes détectées automatiquement', 'log-ok');
+      }
+      
+      afficherSelecteursColonnes();
+    },
+    header: true,
+    skipEmptyLines: true,
+    error: function(err) {
+      setStatus('Erreur lecture fichier : ' + err.message, false);
+      log('Erreur : ' + err.message, 'log-err');
+    }
+  };
+  Papa.parse(file, config);
+}
+
+function detectCol(possibles){
+  for(var i=0; i<possibles.length; i++){
+    if(G.colsDetectees.indexOf(possibles[i]) !== -1) return possibles[i];
+  }
+  return G.colsDetectees[0] || '';
+}
+
 function onFileSelect(e) {
   var f = e.target.files[0];
   if (f) traiterFichier(f);
@@ -578,25 +619,6 @@ function traiterFichier(file) {
 
 
 
-function lireCSV(file) {
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var txt = e.target.result;
-    // Détection séparateur
-    var sep = txt.indexOf(';') !== -1 ? ';' : ',';
-    var lines = txt.split(/\r?\n/).filter(function(l){ return l.trim(); });
-    var headers = lines[0].split(sep).map(function(h){ return h.trim().replace(/^"|"$/g,''); });
-    var rows = lines.slice(1).map(function(l){
-      var vals = l.split(sep).map(function(v){ return v.trim().replace(/^"|"$/g,''); });
-      var obj = {};
-      headers.forEach(function(h,i){ obj[h] = vals[i] !== undefined ? vals[i] : ''; });
-      return obj;
-    }).filter(function(r){ return Object.values(r).some(function(v){ return v && v.trim(); }); });
-    log('CSV parsé : ' + rows.length + ' lignes, colonnes : ' + headers.join(', '), 'log-ok');
-    apresLecture(headers, rows);
-  };
-  reader.readAsText(file, 'utf-8');
-}
 
 function lireExcel(file) {
   var reader = new FileReader();
