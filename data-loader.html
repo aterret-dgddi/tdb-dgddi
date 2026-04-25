@@ -415,7 +415,7 @@ function showMappingSection() {
   G.sourceColumns.forEach(srcCol => {
     const normalized = srcCol.toLowerCase().trim();
     
-    // Mapping exact
+    // Mapping exact (nom déjà normalisé lors du parsing)
     const exactMatch = DATA_COLUMNS.find(dc => dc.name.toLowerCase() === normalized);
     if (exactMatch) {
       G.mapping[srcCol] = exactMatch.name;
@@ -499,6 +499,13 @@ function normalizeText(str) {
     .replace(/\s+/g, ' ')              // Espaces multiples → simple
     .replace(/['']/g, "'")             // Apostrophes courbes → droite
     .replace(/[""]/g, '"');            // Guillemets courbes → droits
+}
+
+function normalizeColumnName(str) {
+  return String(str || '')
+    .trim()
+    .replace(/\s+/g, '_')              // Espaces → underscores
+    .replace(/[-]/g, '_');             // Tirets → underscores
 }
 
 function generatePreview() {
