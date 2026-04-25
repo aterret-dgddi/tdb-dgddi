@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chargeur de données DGDDI</title>
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      color: #262633;
+      background: #F7F7F7;
+      padding: 16px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #16B378; }
+    
+    .drop-zone {
+      border: 2px dashed #D9D9D9;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 20px;
+    }
+    .drop-zone:hover { border-color: #16B378; background: #F0FFF4; }
+    .drop-zone.dragover { border-color: #16B378; background: #E6F9F0; }
+    .drop-icon { font-size: 48px; margin-bottom: 12px; color: #D9D9D9; }
+    .drop-text { font-size: 14px; color: #929299; margin-bottom: 8px; }
+    .drop-hint { font-size: 12px; color: #929299; }
+    
+    .mapping-section { 
+      background: white; 
+      border-radius: 8px; 
+      padding: 20px; 
+      margin-bottom: 20px;
+      display: none;
+    }
+    .mapping-section.visible { display: block; }
+    .mapping-title { 
+      font-size: 14px; 
+      font-weight: 600; 
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mapping-table { width: 100%; border-collapse: collapse; }
+    .mapping-table th { 
+      text-align: left; 
+      padding: 8px 12px; 
+      background: #F7F7F7;
+      font-weight: 600;
+      font-size: 12px;
+      color: #929299;
+      text-transform: uppercase;
+    }
+    .mapping-table td { 
+      padding: 8px 12px; 
+      border-bottom: 1px solid #F0F0F0;
+    }
+    .mapping-table select {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid #D9D9D9;
+      border-radius: 4px;
+      font-size: 13px;
+      background: white;
+    }
+    .mapping-table select.required { border-color: #F97316; }
+    .col-source { font-weight: 500; }
+    .col-preview { color: #929299; font-size: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+    
+    .preview-section {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .preview-section.visible { display: block; }
+    .preview-title { 
+      font-size: 14px; 
+      font-weight: 600; 
+      margin-bottom: 16px;
+    }
+    .preview-table { 
+      width: 100%; 
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .preview-table th {
+      text-align: left;
+      padding: 8px 12px;
+      background: #F7F7F7;
+      font-weight: 600;
+      border-bottom: 2px solid #D9D9D9;
+      position: sticky;
+      top: 0;
+    }
+    .preview-table td {
+      padding: 6px 12px;
+      border-bottom: 1px solid #F0F0F0;
+    }
+    .preview-table tr.error td { background: #FEE2E2; color: #991B1B; }
+    .preview-table tr.insert td { background: #ECFDF5; }
+    .preview-table tr.update td { background: #FEF3C7; }
+    
+    .actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary {
+      background: #16B378;
+      color: white;
+    }
+    .btn-primary:hover:not(:disabled) { background: #149865; }
+    .btn-secondary {
+      background: #F0F0F0;
+      color: #262633;
+    }
+    .btn-secondary:hover:not(:disabled) { background: #E0E0E0; }
+    
+    .status {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      display: none;
+    }
+    .status.visible { display: block; }
+    .status.info { background: #EFF6FF; color: #1E40AF; border-left: 3px solid #3B82F6; }
+    .status.success { background: #ECFDF5; color: #065F46; border-left: 3px solid #16B378; }
+    .status.error { background: #FEE2E2; color: #991B1B; border-left: 3px solid #DC2626; }
+    
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-insert { background: #ECFDF5; color: #065F46; }
+    .badge-update { background: #FEF3C7; color: #92400E; }
+    .badge-error { background: #FEE2E2; color: #991B1B; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 Chargeur de données DGDDI</h1>
+    
+    <div id="status" class="status"></div>
+    
+    <div class="drop-zone" id="dropzone">
+      <div class="drop-icon">📁</div>
+      <div class="drop-text">Glissez un fichier Excel ou CSV ici</div>
+      <div class="drop-hint">ou cliquez pour sélectionner</div>
+      <input type="file" id="fileinput" accept=".xlsx,.xls,.csv" style="display:none">
+    </div>
+    
+    <div class="mapping-section" id="mapping-section">
+      <div class="mapping-title">
+        <span>🔗 Correspondance des colonnes</span>
+      </div>
+      <table class="mapping-table">
+        <thead>
+          <tr>
+            <th>Colonne fichier</th>
+            <th>Aperçu</th>
+            <th>→ Colonne DATA</th>
+          </tr>
+        </thead>
+        <tbody id="mapping-tbody"></tbody>
+      </table>
+      <div class="actions" style="margin-top: 16px;">
+        <button class="btn btn-primary" id="btn-preview">Générer la preview</button>
+      </div>
+    </div>
+    
+    <div class="preview-section" id="preview-section">
+      <div class="preview-title">
+        <span id="preview-title-text">📋 Preview</span>
+      </div>
+      <div style="max-height: 400px; overflow-y: auto;">
+        <table class="preview-table">
+          <thead id="preview-thead"></thead>
+          <tbody id="preview-tbody"></tbody>
+        </table>
+      </div>
+      <div class="actions" style="margin-top: 16px;">
+        <button class="btn btn-secondary" id="btn-cancel">Annuler</button>
+        <button class="btn btn-primary" id="btn-write">Écrire dans Grist</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// État global
+const G = {
+  gristReady: false,
+  rawRows: [],
+  sourceColumns: [],
+  dataColumns: [],
+  structures: [],
+  equivalence: [],
+  existingData: [],
+  mapping: {},
+  previewRows: []
+};
+
+// Colonnes de la table DATA (ordre d'affichage)
+const DATA_COLUMNS = [
+  { name: 'Annee', type: 'int', required: true },
+  { name: 'Structure', type: 'ref', required: true },
+  { name: 'EffectifsRemuneres', type: 'numeric' },
+  { name: 'EffectifsCibles', type: 'numeric' },
+  { name: 'MasseSalariale', type: 'numeric' },
+  { name: 'JoursFormationParAgent', type: 'numeric' },
+  { name: 'AbsenteismeJours', type: 'numeric' },
+  { name: 'AgeMoyen', type: 'numeric' },
+  { name: 'ETPT_SU', type: 'numeric' },
+  { name: 'ETPT_AGCO', type: 'numeric' },
+  { name: 'NbVehicules', type: 'int' },
+  { name: 'TauxVetusteStructure', type: 'numeric' },
+  { name: 'NbPCPortable', type: 'int' },
+  { name: 'NbPCBureau', type: 'int' },
+  { name: 'MontantFormationTransport', type: 'numeric' },
+  { name: 'MontantFormationRepas', type: 'numeric' },
+  { name: 'MontantFormationHebergement', type: 'numeric' },
+  { name: 'MontantAutresmissionsTransport', type: 'numeric' },
+  { name: 'MontantAutresmissionsRepas', type: 'numeric' },
+  { name: 'MontantAutresmissionsHebergement', type: 'numeric' },
+  { name: 'KgCanabis', type: 'numeric' },
+  { name: 'KgCocaine', type: 'numeric' },
+  { name: 'KgTabac', type: 'numeric' },
+  { name: 'NbContentieux', type: 'int' }
+];
+
+// Initialisation Grist
+grist.ready({ requiredAccess: 'full', columns: [] });
+grist.onReady(() => {
+  G.gristReady = true;
+  loadGristData();
+});
+
+async function loadGristData() {
+  setStatus('Chargement des données Grist...', 'info');
+  try {
+    const [structures, equivalence, data] = await Promise.all([
+      grist.docApi.fetchTable('Structures'),
+      grist.docApi.fetchTable('Equivalence'),
+      grist.docApi.fetchTable('DATA')
+    ]);
+    
+    G.structures = structures;
+    G.equivalence = equivalence;
+    G.existingData = data;
+    
+    setStatus(`Prêt — ${structures.length} structures, ${equivalence.length} correspondances`, 'success');
+  } catch (err) {
+    setStatus('Erreur chargement Grist : ' + err.message, 'error');
+  }
+}
+
+// Gestion fichiers
+const dropzone = document.getElementById('dropzone');
+const fileinput = document.getElementById('fileinput');
+
+dropzone.onclick = () => fileinput.click();
+fileinput.onchange = (e) => handleFile(e.target.files[0]);
+
+dropzone.ondragover = (e) => { e.preventDefault(); dropzone.classList.add('dragover'); };
+dropzone.ondragleave = () => dropzone.classList.remove('dragover');
+dropzone.ondrop = (e) => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  handleFile(e.dataTransfer.files[0]);
+};
+
+async function handleFile(file) {
+  if (!file) return;
+  setStatus('Lecture du fichier...', 'info');
+  
+  const ext = file.name.split('.').pop().toLowerCase();
+  
+  try {
+    if (ext === 'xlsx' || ext === 'xls') {
+      await parseExcel(file);
+    } else {
+      await parseCSV(file);
+    }
+    showMappingSection();
+  } catch (err) {
+    setStatus('Erreur lecture fichier : ' + err.message, 'error');
+  }
+}
+
+function parseExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        
+        const headers = json[0];
+        const rows = json.slice(1).map(row => {
+          const obj = {};
+          headers.forEach((h, i) => { obj[h] = row[i]; });
+          return obj;
+        }).filter(r => Object.values(r).some(v => v !== null && v !== ''));
+        
+        G.sourceColumns = headers;
+        G.rawRows = rows;
+        setStatus(`Fichier chargé : ${rows.length} lignes, ${headers.length} colonnes`, 'success');
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function parseCSV(file) {
+  return new Promise((resolve, reject) => {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        G.sourceColumns = results.meta.fields;
+        G.rawRows = results.data;
+        setStatus(`Fichier chargé : ${results.data.length} lignes`, 'success');
+        resolve();
+      },
+      error: reject
+    });
+  });
+}
+
+function showMappingSection() {
+  // Auto-mapping
+  G.mapping = {};
+  G.sourceColumns.forEach(srcCol => {
+    const normalized = srcCol.toLowerCase().trim();
+    
+    // Mapping exact
+    const exactMatch = DATA_COLUMNS.find(dc => dc.name.toLowerCase() === normalized);
+    if (exactMatch) {
+      G.mapping[srcCol] = exactMatch.name;
+      return;
+    }
+    
+    // Mapping "service" → "Structure"
+    if (normalized === 'service') {
+      G.mapping[srcCol] = 'Structure';
+      return;
+    }
+    
+    // Sinon ignorer
+    G.mapping[srcCol] = '[Ignorer]';
+  });
+  
+  // Afficher la section
+  const tbody = document.getElementById('mapping-tbody');
+  tbody.innerHTML = '';
+  
+  G.sourceColumns.forEach(srcCol => {
+    const tr = document.createElement('tr');
+    
+    // Colonne source
+    const tdSource = document.createElement('td');
+    tdSource.className = 'col-source';
+    tdSource.textContent = srcCol;
+    
+    // Aperçu
+    const tdPreview = document.createElement('td');
+    tdPreview.className = 'col-preview';
+    const sampleValue = G.rawRows[0]?.[srcCol] || '';
+    tdPreview.textContent = String(sampleValue).substring(0, 50);
+    
+    // Select mapping
+    const tdMapping = document.createElement('td');
+    const select = document.createElement('select');
+    select.dataset.sourceCol = srcCol;
+    
+    // Option ignorer
+    const optIgnore = document.createElement('option');
+    optIgnore.value = '[Ignorer]';
+    optIgnore.textContent = '[Ignorer cette colonne]';
+    select.appendChild(optIgnore);
+    
+    // Options DATA
+    DATA_COLUMNS.forEach(dc => {
+      const opt = document.createElement('option');
+      opt.value = dc.name;
+      opt.textContent = dc.name + (dc.required ? ' *' : '');
+      select.appendChild(opt);
+    });
+    
+    select.value = G.mapping[srcCol] || '[Ignorer]';
+    select.onchange = () => { G.mapping[srcCol] = select.value; };
+    
+    // Marquer required
+    const dataCol = DATA_COLUMNS.find(dc => dc.name === G.mapping[srcCol]);
+    if (dataCol?.required) {
+      select.classList.add('required');
+    }
+    
+    tdMapping.appendChild(select);
+    
+    tr.appendChild(tdSource);
+    tr.appendChild(tdPreview);
+    tr.appendChild(tdMapping);
+    tbody.appendChild(tr);
+  });
+  
+  document.getElementById('mapping-section').classList.add('visible');
+}
+
+// Générer preview
+document.getElementById('btn-preview').onclick = generatePreview;
+
+function generatePreview() {
+  // Vérifier colonnes obligatoires
+  const mappedCols = Object.values(G.mapping).filter(v => v !== '[Ignorer]');
+  const hasAnnee = mappedCols.includes('Annee');
+  const hasStructure = mappedCols.includes('Structure');
+  
+  if (!hasAnnee || !hasStructure) {
+    setStatus('Erreur : les colonnes Annee et Structure sont obligatoires', 'error');
+    return;
+  }
+  
+  setStatus('Génération de la preview...', 'info');
+  
+  // Créer index existant
+  const existingIndex = {};
+  G.existingData.forEach(row => {
+    const key = `${row.Annee}|${row.Structure}`;
+    existingIndex[key] = row.id;
+  });
+  
+  // Créer index HIE
+  const hieToId = {};
+  G.structures.forEach(s => {
+    if (s.HIE) hieToId[s.HIE] = s.id;
+  });
+  
+  const equivMap = {};
+  G.equivalence.forEach(e => {
+    if (e.Source_SI && e.HIE) equivMap[e.Source_SI.trim()] = e.HIE;
+  });
+  
+  // Traiter chaque ligne
+  G.previewRows = [];
+  
+  G.rawRows.forEach((row, idx) => {
+    const previewRow = {
+      _source: row,
+      _index: idx,
+      _status: 'insert',
+      _error: null,
+      _structureName: null
+    };
+    
+    // Mapper les colonnes
+    Object.keys(G.mapping).forEach(srcCol => {
+      const dataCol = G.mapping[srcCol];
+      if (dataCol === '[Ignorer]') return;
+      
+      let value = row[srcCol];
+      
+      if (dataCol === 'Structure') {
+        // Résolution HIE
+        const sourceSI = String(value || '').trim();
+        const hie = equivMap[sourceSI];
+        
+        if (!hie) {
+          previewRow._error = `Structure "${sourceSI}" non trouvée dans Equivalence`;
+          previewRow._status = 'error';
+          return;
+        }
+        
+        const structId = hieToId[hie];
+        if (!structId) {
+          previewRow._error = `HIE "${hie}" non trouvé dans Structures`;
+          previewRow._status = 'error';
+          return;
+        }
+        
+        previewRow.Structure = structId;
+        previewRow._structureName = sourceSI;
+      } else {
+        // Nettoyage valeur
+        if (value === null || value === '') {
+          previewRow[dataCol] = null;
+        } else if (typeof value === 'string') {
+          // Enlever espaces, € et autres symboles
+          const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
+          const num = parseFloat(cleaned);
+          previewRow[dataCol] = isNaN(num) ? value : num;
+        } else {
+          previewRow[dataCol] = value;
+        }
+      }
+    });
+    
+    // Vérifier si existe déjà
+    if (previewRow.Annee && previewRow.Structure && !previewRow._error) {
+      const key = `${previewRow.Annee}|${previewRow.Structure}`;
+      if (existingIndex[key]) {
+        previewRow._status = 'update';
+        previewRow._existingId = existingIndex[key];
+      }
+    }
+    
+    G.previewRows.push(previewRow);
+  });
+  
+  showPreview();
+}
+
+function showPreview() {
+  const thead = document.getElementById('preview-thead');
+  const tbody = document.getElementById('preview-tbody');
+  
+  thead.innerHTML = '';
+  tbody.innerHTML = '';
+  
+  // En-têtes : colonnes mappées + statut
+  const mappedDataCols = [...new Set(Object.values(G.mapping).filter(v => v !== '[Ignorer]'))];
+  
+  const trHead = document.createElement('tr');
+  trHead.innerHTML = '<th>Statut</th>';
+  mappedDataCols.forEach(col => {
+    const th = document.createElement('th');
+    th.textContent = col;
+    trHead.appendChild(th);
+  });
+  thead.appendChild(trHead);
+  
+  // Lignes
+  G.previewRows.forEach(prow => {
+    const tr = document.createElement('tr');
+    tr.className = prow._status;
+    
+    // Statut
+    const tdStatus = document.createElement('td');
+    if (prow._status === 'error') {
+      tdStatus.innerHTML = `<span class="badge badge-error">ERREUR</span><br><small>${prow._error}</small>`;
+    } else if (prow._status === 'insert') {
+      tdStatus.innerHTML = '<span class="badge badge-insert">INSERT</span>';
+    } else {
+      tdStatus.innerHTML = '<span class="badge badge-update">UPDATE</span>';
+    }
+    tr.appendChild(tdStatus);
+    
+    // Colonnes
+    mappedDataCols.forEach(col => {
+      const td = document.createElement('td');
+      if (col === 'Structure') {
+        td.textContent = prow._structureName || prow.Structure || '';
+      } else {
+        td.textContent = prow[col] ?? '';
+      }
+      tr.appendChild(td);
+    });
+    
+    tbody.appendChild(tr);
+  });
+  
+  // Stats
+  const nInsert = G.previewRows.filter(r => r._status === 'insert').length;
+  const nUpdate = G.previewRows.filter(r => r._status === 'update').length;
+  const nError = G.previewRows.filter(r => r._status === 'error').length;
+  
+  document.getElementById('preview-title-text').textContent = 
+    `📋 Preview — ${nInsert} insertions, ${nUpdate} mises à jour, ${nError} erreurs`;
+  
+  document.getElementById('preview-section').classList.add('visible');
+  document.getElementById('btn-write').disabled = nError > 0 || (nInsert + nUpdate === 0);
+  
+  setStatus(`Preview générée : ${nInsert} INSERT, ${nUpdate} UPDATE, ${nError} erreurs`, nError > 0 ? 'error' : 'success');
+}
+
+// Écriture
+document.getElementById('btn-write').onclick = async () => {
+  setStatus('Écriture dans Grist...', 'info');
+  document.getElementById('btn-write').disabled = true;
+  
+  try {
+    const toInsert = G.previewRows.filter(r => r._status === 'insert');
+    const toUpdate = G.previewRows.filter(r => r._status === 'update');
+    
+    // Préparer records
+    const insertRecords = toInsert.map(r => {
+      const rec = {};
+      DATA_COLUMNS.forEach(dc => {
+        if (r[dc.name] !== undefined) rec[dc.name] = r[dc.name];
+      });
+      return rec;
+    });
+    
+    const updateRecords = toUpdate.map(r => {
+      const rec = { id: r._existingId };
+      DATA_COLUMNS.forEach(dc => {
+        if (r[dc.name] !== undefined) rec[dc.name] = r[dc.name];
+      });
+      return rec;
+    });
+    
+    // Écrire
+    if (insertRecords.length > 0) {
+      await grist.docApi.applyUserActions([
+        ['BulkAddRecord', 'DATA', [null]*insertRecords.length, insertRecords]
+      ]);
+    }
+    
+    if (updateRecords.length > 0) {
+      await grist.docApi.applyUserActions([
+        ['BulkUpdateRecord', 'DATA', updateRecords.map(r => r.id), updateRecords]
+      ]);
+    }
+    
+    setStatus(`✓ ${insertRecords.length} lignes insérées, ${updateRecords.length} mises à jour`, 'success');
+    
+    // Reset
+    setTimeout(() => {
+      resetUI();
+    }, 2000);
+    
+  } catch (err) {
+    setStatus('Erreur écriture : ' + err.message, 'error');
+    document.getElementById('btn-write').disabled = false;
+  }
+};
+
+document.getElementById('btn-cancel').onclick = resetUI;
+
+function resetUI() {
+  document.getElementById('mapping-section').classList.remove('visible');
+  document.getElementById('preview-section').classList.remove('visible');
+  G.rawRows = [];
+  G.previewRows = [];
+  G.mapping = {};
+  fileinput.value = '';
+  loadGristData();
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status visible ' + type;
+}
+</script>
+</body>
+</html>
