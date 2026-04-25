@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Test DATA</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+body { font-family: Arial; padding: 20px; }
+#log { white-space: pre-wrap; font-family: monospace; font-size: 12px; }
+.ok { color: green; }
+.error { color: red; }
+</style>
+</head>
+<body>
+<h1>Test d'accès à la table DATA</h1>
+<div id="log"></div>
+
+<script>
+function log(msg, isError) {
+  const div = document.getElementById('log');
+  const span = document.createElement('div');
+  span.className = isError ? 'error' : 'ok';
+  span.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
+  div.appendChild(span);
+}
+
+function toObjs(rec) {
+  const keys = Object.keys(rec);
+  if (!keys.length) return [];
+  return (rec.id || []).map((id, i) => {
+    const obj = { id: id };
+    keys.forEach(k => {
+      if (k !== 'id') obj[k] = rec[k][i];
+    });
+    return obj;
+  });
+}
+
+async function testAccess() {
+  log('═══════════════════════════════════════');
+  log('Démarrage du test...');
+  
+  // Test 1: grist existe ?
+  if (typeof grist === 'undefined') {
+    log('❌ grist n\'est pas défini', true);
+    return;
+  }
+  log('✅ grist est défini');
+  
+  // Test 2: ready
+  try {
+    await grist.ready({ requiredAccess: 'full' });
+    log('✅ grist.ready() réussi');
+  } catch(e) {
+    log('❌ grist.ready() échoué: ' + e.message, true);
+    return;
+  }
+  
+  // Test 3: docApi existe ?
+  if (typeof grist.docApi === 'undefined') {
+    log('❌ grist.docApi n\'existe pas', true);
+    log('ℹ️  Votre version de Grist ne supporte pas docApi');
+    return;
+  }
+  log('✅ grist.docApi existe');
+  
+  // Test 4: fetchTable existe ?
+  if (typeof grist.docApi.fetchTable !== 'function') {
+    log('❌ grist.docApi.fetchTable n\'est pas une fonction', true);
+    return;
+  }
+  log('✅ grist.docApi.fetchTable existe');
+  
+  // Test 5: Lister les tables
+  log('─────────────────────────────────────');
+  log('Tentative de récupération de la liste des tables...');
+  
+  const tablesToTest = ['DATA', 'Data', 'data', 'Structures', 'Budget'];
+  
+  for (const tableName of tablesToTest) {
+    try {
+      log('Test de la table: ' + tableName);
+      const raw = await grist.docApi.fetchTable(tableName);
+      const data = toObjs(raw);
+      
+      if (data && data.length > 0) {
+        log('✅ ' + tableName + ': ' + data.length + ' ligne(s)');
+        log('   Première ligne: ' + JSON.stringify(data[0]).substring(0, 200));
+        log('   Colonnes: ' + Object.keys(data[0]).join(', '));
+      } else {
+        log('⚠️  ' + tableName + ': Table vide (0 ligne)');
+      }
+    } catch(e) {
+      log('❌ ' + tableName + ': ' + e.message, true);
+    }
+  }
+  
+  log('═══════════════════════════════════════');
+  log('Test terminé');
+}
+
+// Attendre que le DOM soit chargé
+window.addEventListener('load', () => {
+  setTimeout(testAccess, 500);
+});
+</script>
+</body>
+</html>
