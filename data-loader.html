@@ -253,12 +253,14 @@ const DATA_COLUMNS = [
   { name: 'NbContentieux', type: 'int' }
 ];
 
-// Initialisation Grist
-grist.ready({ requiredAccess: 'full', columns: [] });
-grist.onReady(() => {
+// Initialisation Grist - compatible toutes versions
+grist.ready({ requiredAccess: 'full' });
+
+// Charger les données dès que possible
+setTimeout(() => {
   G.gristReady = true;
   loadGristData();
-});
+}, 500);
 
 async function loadGristData() {
   setStatus('Chargement des données Grist...', 'info');
