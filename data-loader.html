@@ -233,6 +233,13 @@ const G = {
 // Colonnes de la table DATA (chargées dynamiquement depuis Grist)
 let DATA_COLUMNS = [];
 
+// Colonnes formules à ignorer (ne peuvent pas être importées)
+const FORMULA_COLUMNS = [
+  'ETPTtotal',
+  'VehiculesParAgent',
+  'DepensesBureautique'
+];
+
 // Initialisation Grist - compatible toutes versions
 grist.ready({ requiredAccess: 'full' });
 
@@ -296,7 +303,10 @@ async function loadGristData() {
       // (sera complété au moment du mapping)
     }
     
-    addLog(`${DATA_COLUMNS.length} colonnes DATA détectées : ${DATA_COLUMNS.map(c => c.name).join(', ')}`);
+    // Filtrer les colonnes formules
+    DATA_COLUMNS = DATA_COLUMNS.filter(col => !FORMULA_COLUMNS.includes(col.name));
+    
+    addLog(`${DATA_COLUMNS.length} colonnes DATA détectées (${FORMULA_COLUMNS.length} formules ignorées)`);
     
     setStatus(`Prêt — ${G.structures.length} structures, ${G.equivalence.length} correspondances, ${G.existingData.length} lignes DATA, ${DATA_COLUMNS.length} colonnes`, 'success');
   } catch (err) {
@@ -390,7 +400,7 @@ function showMappingSection() {
     const normalized = srcCol.toLowerCase().trim();
     const exactMatch = DATA_COLUMNS.find(dc => dc.name.toLowerCase() === normalized);
     
-    if (!exactMatch && normalized !== 'service' && srcCol !== '[Ignorer]') {
+    if (!exactMatch && normalized !== 'service' && srcCol !== '[Ignorer]' && !FORMULA_COLUMNS.includes(srcCol)) {
       // Ajouter cette colonne à DATA_COLUMNS (sera créée dans Grist si elle n'existe pas)
       DATA_COLUMNS.push({
         name: srcCol,
@@ -661,10 +671,14 @@ document.getElementById('btn-write').onclick = async () => {
     
     // Préparer records au format Grist columnaire
     if (toInsert.length > 0) {
+      // N'écrire QUE les colonnes mappées (pas [Ignorer])
+      const mappedCols = Object.values(G.mapping).filter(v => v !== '[Ignorer]' && !FORMULA_COLUMNS.includes(v));
       const colData = {};
-      DATA_COLUMNS.forEach(dc => {
-        colData[dc.name] = toInsert.map(r => r[dc.name] ?? null);
+      mappedCols.forEach(colName => {
+        colData[colName] = toInsert.map(r => r[colName] ?? null);
       });
+      
+      addLog(`Insertion dans ${mappedCols.length} colonnes : ${mappedCols.join(', ')}`);
       
       await grist.docApi.applyUserActions([
         ['BulkAddRecord', 'DATA', Array(toInsert.length).fill(null), colData]
@@ -675,10 +689,14 @@ document.getElementById('btn-write').onclick = async () => {
     if (toUpdate.length > 0) {
       addLog(`Mise à jour de ${toUpdate.length} lignes...`);
       const ids = toUpdate.map(r => r._existingId);
+      // N'écrire QUE les colonnes mappées (pas [Ignorer])
+      const mappedCols = Object.values(G.mapping).filter(v => v !== '[Ignorer]' && !FORMULA_COLUMNS.includes(v));
       const colData = {};
-      DATA_COLUMNS.forEach(dc => {
-        colData[dc.name] = toUpdate.map(r => r[dc.name] ?? null);
+      mappedCols.forEach(colName => {
+        colData[colName] = toUpdate.map(r => r[colName] ?? null);
       });
+      
+      addLog(`Mise à jour de ${mappedCols.length} colonnes : ${mappedCols.join(', ')}`);
       
       await grist.docApi.applyUserActions([
         ['BulkUpdateRecord', 'DATA', ids, colData]
