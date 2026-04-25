@@ -1812,8 +1812,8 @@ function transformDataToLegacy(dataRows){
     if(row.NbVehicules!=null||row.TauxVetusteStructure!=null){
       vehicules.push({Structure:sid,Annee:an,NbVehicules:row.NbVehicules,TauxVetusteStructure:row.TauxVetusteStructure,VehiculesParAgent:null});
     }
-    if(row.DepensesBureautique!=null||row.NbPCPortable!=null){
-      informatique.push({Structure:sid,Annee:an,DepensesBureautique:row.DepensesBureautique,NbPCPortable:row.NbPCPortable,NbPCBureau:row.NbPCBureau});
+    if(row.NbPCPortable!=null||row.NbPCBureau!=null){
+      informatique.push({Structure:sid,Annee:an,DepensesBureautique:null,NbPCPortable:row.NbPCPortable,NbPCBureau:row.NbPCBureau});
     }
     const tr=(row.MontantFormationTransport||0)+(row.MontantAutresmissionsTransport||0);
     const hb=(row.MontantFormationHebergement||0)+(row.MontantAutresmissionsHebergement||0);

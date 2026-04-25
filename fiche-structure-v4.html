@@ -1042,15 +1042,42 @@ async function chargerAutresTables() {
   _loading = true;
   setStatus('Chargement des données...', false);
 
-  // Charger DATA et transformer
-  const dataRaw = await fetchTableGrist(CFG.tables.data);
-  if (dataRaw) {
+  // Charger DATA et transformer (avec variantes de nom)
+  let dataRaw = await fetchTableGrist(CFG.tables.data);
+  
+  // Si DATA ne fonctionne pas, essayer des variantes
+  if (!dataRaw || dataRaw.length === 0) {
+    console.log('[Diagnostic] Tentative variantes de nom pour DATA...');
+    const variants = ['Data', 'data', 'DONNEES', 'Donnees'];
+    for (const variant of variants) {
+      dataRaw = await fetchTableGrist(variant);
+      if (dataRaw && dataRaw.length > 0) {
+        console.log('[Diagnostic] Table trouvée avec le nom: ' + variant);
+        break;
+      }
+    }
+  }
+  
+  console.log('[Diagnostic] DATA:', dataRaw ? dataRaw.length + ' ligne(s)' : 'null ou inaccessible');
+  
+  if (dataRaw && dataRaw.length > 0) {
+    console.log('[Diagnostic] Première ligne DATA:', dataRaw[0]);
+    console.log('[Diagnostic] Colonnes disponibles:', Object.keys(dataRaw[0]));
     const transformed = transformDataToLegacy(dataRaw);
     D.rh = transformed.rh;
     D.vehicules = transformed.vehicules;
     D.informatique = transformed.informatique;
     D.fraisMission = transformed.fraisMission;
     console.log('[DATA] Transformé:', {rh: D.rh.length, vh: D.vehicules.length, it: D.informatique.length, fm: D.fraisMission.length});
+  } else {
+    console.warn('[DATA] ⚠️ Aucune donnée trouvée');
+    console.warn('[DATA] Vérifiez que la table existe dans Grist avec le nom: ' + CFG.tables.data);
+    console.warn('[DATA] Alternative: renommez CFG.tables.data dans le code du widget');
+    // Initialiser vides pour éviter les erreurs
+    D.rh = D.rh || [];
+    D.vehicules = D.vehicules || [];
+    D.informatique = D.informatique || [];
+    D.fraisMission = D.fraisMission || [];
   }
   
   // Charger autres tables
@@ -3288,8 +3315,8 @@ function transformDataToLegacy(dataRows){
     if(row.NbVehicules!=null||row.TauxVetusteStructure!=null){
       vehicules.push({Structure:sid,Annee:an,NbVehicules:row.NbVehicules,TauxVetusteStructure:row.TauxVetusteStructure,VehiculesParAgent:null});
     }
-    if(row.DepensesBureautique!=null||row.NbPCPortable!=null){
-      informatique.push({Structure:sid,Annee:an,DepensesBureautique:row.DepensesBureautique,NbPCPortable:row.NbPCPortable,NbPCBureau:row.NbPCBureau});
+    if(row.NbPCPortable!=null||row.NbPCBureau!=null){
+      informatique.push({Structure:sid,Annee:an,DepensesBureautique:null,NbPCPortable:row.NbPCPortable,NbPCBureau:row.NbPCBureau});
     }
     const tr=(row.MontantFormationTransport||0)+(row.MontantAutresmissionsTransport||0);
     const hb=(row.MontantFormationHebergement||0)+(row.MontantAutresmissionsHebergement||0);
