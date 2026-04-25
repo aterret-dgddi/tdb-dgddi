@@ -395,21 +395,6 @@ function parseCSV(file) {
 }
 
 function showMappingSection() {
-  // Étendre DATA_COLUMNS avec les colonnes du fichier source si nécessaire
-  G.sourceColumns.forEach(srcCol => {
-    const normalized = srcCol.toLowerCase().trim();
-    const exactMatch = DATA_COLUMNS.find(dc => dc.name.toLowerCase() === normalized);
-    
-    if (!exactMatch && normalized !== 'service' && srcCol !== '[Ignorer]' && !FORMULA_COLUMNS.includes(srcCol)) {
-      // Ajouter cette colonne à DATA_COLUMNS (sera créée dans Grist si elle n'existe pas)
-      DATA_COLUMNS.push({
-        name: srcCol,
-        type: 'numeric',
-        required: false
-      });
-    }
-  });
-  
   // Auto-mapping
   G.mapping = {};
   G.sourceColumns.forEach(srcCol => {
@@ -516,6 +501,16 @@ function generatePreview() {
   
   if (!hasAnnee || !hasStructure) {
     setStatus('Erreur : les colonnes Annee et Structure sont obligatoires', 'error');
+    return;
+  }
+  
+  // Vérifier que toutes les colonnes mappées existent dans DATA
+  const dataColNames = DATA_COLUMNS.map(dc => dc.name);
+  const invalidCols = mappedCols.filter(col => !dataColNames.includes(col) && !FORMULA_COLUMNS.includes(col));
+  
+  if (invalidCols.length > 0) {
+    setStatus(`Erreur : colonnes inexistantes dans DATA : ${invalidCols.join(', ')}. Créez-les d'abord dans Grist.`, 'error');
+    addLog(`Colonnes inexistantes : ${invalidCols.join(', ')}`, 'error');
     return;
   }
   
