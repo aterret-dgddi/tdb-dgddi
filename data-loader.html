@@ -635,33 +635,27 @@ document.getElementById('btn-write').onclick = async () => {
     const toInsert = G.previewRows.filter(r => r._status === 'insert');
     const toUpdate = G.previewRows.filter(r => r._status === 'update');
     
-    // Préparer records
-    const insertRecords = toInsert.map(r => {
-      const rec = {};
+    // Préparer records au format Grist columnaire
+    if (toInsert.length > 0) {
+      const colData = {};
       DATA_COLUMNS.forEach(dc => {
-        if (r[dc.name] !== undefined) rec[dc.name] = r[dc.name];
+        colData[dc.name] = toInsert.map(r => r[dc.name] ?? null);
       });
-      return rec;
-    });
-    
-    const updateRecords = toUpdate.map(r => {
-      const rec = { id: r._existingId };
-      DATA_COLUMNS.forEach(dc => {
-        if (r[dc.name] !== undefined) rec[dc.name] = r[dc.name];
-      });
-      return rec;
-    });
-    
-    // Écrire
-    if (insertRecords.length > 0) {
+      
       await grist.docApi.applyUserActions([
-        ['BulkAddRecord', 'DATA', [null]*insertRecords.length, insertRecords]
+        ['BulkAddRecord', 'DATA', Array(toInsert.length).fill(null), colData]
       ]);
     }
     
-    if (updateRecords.length > 0) {
+    if (toUpdate.length > 0) {
+      const ids = toUpdate.map(r => r._existingId);
+      const colData = {};
+      DATA_COLUMNS.forEach(dc => {
+        colData[dc.name] = toUpdate.map(r => r[dc.name] ?? null);
+      });
+      
       await grist.docApi.applyUserActions([
-        ['BulkUpdateRecord', 'DATA', updateRecords.map(r => r.id), updateRecords]
+        ['BulkUpdateRecord', 'DATA', ids, colData]
       ]);
     }
     
