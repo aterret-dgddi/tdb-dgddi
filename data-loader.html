@@ -492,6 +492,15 @@ function showMappingSection() {
 // Générer preview
 document.getElementById('btn-preview').onclick = generatePreview;
 
+function normalizeText(str) {
+  return String(str || '')
+    .trim()
+    .replace(/[–—]/g, '-')  // Tirets cadratins → tiret normal
+    .replace(/\s+/g, ' ')              // Espaces multiples → simple
+    .replace(/['']/g, "'")             // Apostrophes courbes → droite
+    .replace(/[""]/g, '"');            // Guillemets courbes → droits
+}
+
 function generatePreview() {
   // Vérifier colonnes obligatoires
   const mappedCols = Object.values(G.mapping).filter(v => v !== '[Ignorer]');
@@ -520,7 +529,13 @@ function generatePreview() {
   
   const equivMap = {};
   G.equivalence.forEach(e => {
-    if (e.Source_SI && e.HIE) equivMap[e.Source_SI.trim()] = e.HIE;
+    // Accepter aussi les Source_SI vides (valeur par défaut)
+    if (e.HIE) {
+      const key = e.Source_SI === null || e.Source_SI === undefined || String(e.Source_SI).trim() === '' 
+        ? '' 
+        : normalizeText(e.Source_SI);
+      equivMap[key] = e.HIE;
+    }
   });
   
   // Traiter chaque ligne
@@ -544,12 +559,29 @@ function generatePreview() {
       
       if (dataCol === 'Structure') {
         // Résolution HIE
-        const sourceSI = String(value || '').trim();
-        const hie = equivMap[sourceSI];
+        let sourceSI = String(value || '').trim();
+        
+        // Si vide, utiliser la clé vide "" dans Equivalence
+        if (!sourceSI || sourceSI === '') {
+          sourceSI = '';
+        }
+        
+        const normalizedSourceSI = normalizeText(sourceSI);
+        const hie = equivMap[normalizedSourceSI];
         
         if (!hie) {
-          previewRow._error = `Structure "${sourceSI}" non trouvée dans Equivalence`;
+          // Debug : afficher les clés proches
+          const availableKeys = Object.keys(equivMap).filter(k => k.toLowerCase().includes(normalizedSourceSI.toLowerCase().substring(0, 10)));
+          const debugMsg = availableKeys.length > 0 ? ` (similaires: ${availableKeys.slice(0, 3).join(', ')})` : '';
+          previewRow._error = `Structure "${sourceSI}" (normalisé: "${normalizedSourceSI}") non trouvée${debugMsg}`;
           previewRow._status = 'error';
+          
+          // Log pour debug
+          if (idx < 3) {
+            console.log('[DEBUG] Structure non trouvée:', sourceSI);
+            console.log('[DEBUG] Normalisée:', normalizedSourceSI);
+            console.log('[DEBUG] Clés Equivalence (normalisées):', Object.keys(equivMap).slice(0, 10));
+          }
           return;
         }
         
