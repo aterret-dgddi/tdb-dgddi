@@ -265,19 +265,39 @@ setTimeout(() => {
 async function loadGristData() {
   setStatus('Chargement des données Grist...', 'info');
   try {
-    const [structures, equivalence, data] = await Promise.all([
-      grist.docApi.fetchTable('Structures'),
-      grist.docApi.fetchTable('Equivalence'),
-      grist.docApi.fetchTable('DATA')
-    ]);
+    const structures = await grist.docApi.fetchTable('Structures');
+    const equivalence = await grist.docApi.fetchTable('Equivalence');
+    const data = await grist.docApi.fetchTable('DATA');
     
-    G.structures = structures;
-    G.equivalence = equivalence;
-    G.existingData = data;
+    // fetchTable retourne un objet avec des arrays indexés
+    G.structures = Array.isArray(structures) ? structures : (structures.id || []).map((id, i) => {
+      const row = { id };
+      Object.keys(structures).forEach(key => {
+        if (Array.isArray(structures[key])) row[key] = structures[key][i];
+      });
+      return row;
+    });
     
-    setStatus(`Prêt — ${structures.length} structures, ${equivalence.length} correspondances`, 'success');
+    G.equivalence = Array.isArray(equivalence) ? equivalence : (equivalence.id || []).map((id, i) => {
+      const row = { id };
+      Object.keys(equivalence).forEach(key => {
+        if (Array.isArray(equivalence[key])) row[key] = equivalence[key][i];
+      });
+      return row;
+    });
+    
+    G.existingData = Array.isArray(data) ? data : (data.id || []).map((id, i) => {
+      const row = { id };
+      Object.keys(data).forEach(key => {
+        if (Array.isArray(data[key])) row[key] = data[key][i];
+      });
+      return row;
+    });
+    
+    setStatus(`Prêt — ${G.structures.length} structures, ${G.equivalence.length} correspondances, ${G.existingData.length} lignes DATA`, 'success');
   } catch (err) {
     setStatus('Erreur chargement Grist : ' + err.message, 'error');
+    console.error('Erreur détaillée:', err);
   }
 }
 
@@ -458,7 +478,7 @@ function generatePreview() {
   
   // Créer index existant
   const existingIndex = {};
-  G.existingData.forEach(row => {
+  (G.existingData || []).forEach(row => {
     const key = `${row.Annee}|${row.Structure}`;
     existingIndex[key] = row.id;
   });
