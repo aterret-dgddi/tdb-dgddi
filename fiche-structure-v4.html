@@ -70,28 +70,36 @@ body{font-family:'Cabin',sans-serif;background:#F2F5FA;color:var(--gris1);line-h
 
 .qnav-btn {
   border: none;
-  padding: 2px 8px;          /* plus compact */
-  border-radius: 12px;       /* pill plus fin */
-  font-size: 11px;           /* texte réduit */
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 10.5px;
   cursor: pointer;
-  margin: 2px 3px;           /* espace réduit */
+  margin: 3px 4px;
   color: white;
   font-weight: 600;
   white-space: nowrap;
-  line-height: 1.2;          /* hauteur réduite */
+  line-height: 1.3;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 
-/* Couleurs par région */
-.qnav-btn.Siège     { background: #003366; }
-.qnav-btn.DI        { background: #007bff; }
-.qnav-btn.Outremer  { background: #6f42c1; }
-.qnav-btn.SCN       { background: #198754; }
+.qnav-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+}
+
+/* Couleurs par région avec dégradés subtils */
+.qnav-btn.Siège     { background: linear-gradient(135deg, #003366 0%, #004080 100%); }
+.qnav-btn.DI        { background: linear-gradient(135deg, #0066cc 0%, #0080ff 100%); }
+.qnav-btn.Outremer  { background: linear-gradient(135deg, #6f42c1 0%, #8456d4 100%); }
+.qnav-btn.SCN       { background: linear-gradient(135deg, #198754 0%, #20a167 100%); }
 
 /* État actif */
 .qnav-btn.active {
   outline: 2px solid #fff;
-  box-shadow: 0 0 4px rgba(0,0,0,0.25);
-  filter: brightness(1.15);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  transform: translateY(-2px);
+  filter: brightness(1.1);
 }
 
 
@@ -1113,57 +1121,18 @@ async function chargerAutresTables() {
    FETCH D'UNE TABLE — docApi puis API REST
 ════════════════════════════════════════════════════ */
 async function fetchTableGrist(tableName) {
-  /* Tentative 1 : grist.docApi.fetchTable */
-  if (typeof grist !== 'undefined' &&
-      typeof grist.docApi !== 'undefined' &&
-      typeof grist.docApi.fetchTable === 'function') {
-    try {
-      const raw = await grist.docApi.fetchTable(tableName);
-      return toObjs(raw);
-    } catch(e) {
-      console.warn('[Grist] docApi.fetchTable("' + tableName + '") échoué:', e.message || e);
-    }
-  }
-
-  /* Tentative 2 : API REST Grist
-     URL : /api/docs/{docId}/tables/{tableId}/records
-     Nécessite que le widget soit dans le même domaine ou CORS permissif */
   try {
-    const docId = await getDocId();
-    if (!docId) return null;
-    const url = _apiBaseUrl + '/api/docs/' + docId + '/tables/' + tableName + '/records';
-    console.log('[Grist] API REST:', url);
-    const resp = await fetch(url, { credentials: 'include' });
-    if (!resp.ok) {
-      console.warn('[Grist] API REST ' + tableName + ' → HTTP ' + resp.status);
-      return null;
-    }
-    const json = await resp.json();
-    /* Format API REST : { records: [{id, fields:{...}}, ...] } */
-    return (json.records || []).map(function(r) {
-      const obj = { id: r.id };
-      Object.entries(r.fields || {}).forEach(function([k, v]) { obj[k] = derefId(v); });
-      return obj;
-    });
+    const raw = await grist.docApi.fetchTable(tableName);
+    const data = toObjs(raw);
+    console.log('[fetchTableGrist] ' + tableName + ': ' + data.length + ' ligne(s)');
+    return data;
   } catch(e) {
-    console.warn('[Grist] API REST "' + tableName + '" échoué:', e.message || e);
+    console.warn('[fetchTableGrist] Erreur ' + tableName + ':', e.message || e);
+    return null;
   }
-
-  return null;
 }
 
-/* Récupère l'ID du document Grist depuis l'URL de la page */
-async function getDocId() {
-  try {
-    /* Depuis l'iframe, window.parent.location peut être bloqué par CSP.
-       On extrait l'ID depuis grist si possible. */
-    if (typeof grist !== 'undefined' && grist.docId) return grist.docId;
-    if (typeof grist !== 'undefined' && grist.getDocName) return await grist.getDocName();
-    /* Fallback : extraire de l'URL parente */
-    const m = document.referrer.match(/\/([a-zA-Z0-9]{16,})\//);
-    return m ? m[1] : null;
-  } catch(e) { return null; }
-}
+
 
 /* ════════════════════════════════════════════════════
    CONVERSION ET NORMALISATION
