@@ -209,6 +209,11 @@
         <button class="btn btn-primary" id="btn-write">Écrire dans Grist</button>
       </div>
     </div>
+    
+    <div class="preview-section" id="console-section" style="display:none;">
+      <div class="preview-title">📜 Console d'exécution</div>
+      <div id="console-logs" style="background:#F7F7F7;padding:12px;border-radius:4px;max-height:200px;overflow-y:auto;font-family:monospace;font-size:11px;line-height:1.6;"></div>
+    </div>
   </div>
 
 <script>
@@ -631,9 +636,14 @@ document.getElementById('btn-write').onclick = async () => {
   setStatus('Écriture dans Grist...', 'info');
   document.getElementById('btn-write').disabled = true;
   
+  // Réinitialiser console
+  document.getElementById('console-logs').innerHTML = '';
+  
   try {
     const toInsert = G.previewRows.filter(r => r._status === 'insert');
     const toUpdate = G.previewRows.filter(r => r._status === 'update');
+    
+    addLog(`Début de l'écriture : ${toInsert.length} insertions, ${toUpdate.length} mises à jour`);
     
     // Préparer records au format Grist columnaire
     if (toInsert.length > 0) {
@@ -645,9 +655,11 @@ document.getElementById('btn-write').onclick = async () => {
       await grist.docApi.applyUserActions([
         ['BulkAddRecord', 'DATA', Array(toInsert.length).fill(null), colData]
       ]);
+      addLog(`${toInsert.length} lignes insérées avec succès`, 'success');
     }
     
     if (toUpdate.length > 0) {
+      addLog(`Mise à jour de ${toUpdate.length} lignes...`);
       const ids = toUpdate.map(r => r._existingId);
       const colData = {};
       DATA_COLUMNS.forEach(dc => {
@@ -657,9 +669,11 @@ document.getElementById('btn-write').onclick = async () => {
       await grist.docApi.applyUserActions([
         ['BulkUpdateRecord', 'DATA', ids, colData]
       ]);
+      addLog(`${toUpdate.length} lignes mises à jour avec succès`, 'success');
     }
     
-    setStatus(`✓ ${insertRecords.length} lignes insérées, ${updateRecords.length} mises à jour`, 'success');
+    addLog('Écriture terminée', 'success');
+    setStatus(`✓ ${toInsert.length} lignes insérées, ${toUpdate.length} mises à jour`, 'success');
     
     // Reset
     setTimeout(() => {
@@ -667,6 +681,7 @@ document.getElementById('btn-write').onclick = async () => {
     }, 2000);
     
   } catch (err) {
+    addLog('Erreur : ' + err.message, 'error');
     setStatus('Erreur écriture : ' + err.message, 'error');
     document.getElementById('btn-write').disabled = false;
   }
@@ -688,6 +703,24 @@ function setStatus(msg, type) {
   const el = document.getElementById('status');
   el.textContent = msg;
   el.className = 'status visible ' + type;
+}
+
+function addLog(msg, type = 'info') {
+  const consoleSection = document.getElementById('console-section');
+  const consoleLogs = document.getElementById('console-logs');
+  
+  consoleSection.style.display = 'block';
+  
+  const timestamp = new Date().toLocaleTimeString('fr-FR');
+  const color = type === 'success' ? '#16B378' : type === 'error' ? '#DC2626' : '#929299';
+  const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : '›';
+  
+  const line = document.createElement('div');
+  line.style.color = color;
+  line.innerHTML = `<span style="color:#929299">${timestamp}</span> ${icon} ${msg}`;
+  
+  consoleLogs.appendChild(line);
+  consoleLogs.scrollTop = consoleLogs.scrollHeight;
 }
 </script>
 </body>
