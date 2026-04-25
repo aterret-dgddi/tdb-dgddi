@@ -230,33 +230,8 @@ const G = {
   previewRows: []
 };
 
-// Colonnes de la table DATA (ordre d'affichage)
-const DATA_COLUMNS = [
-  { name: 'Annee', type: 'int', required: true },
-  { name: 'Structure', type: 'ref', required: true },
-  { name: 'EffectifsRemuneres', type: 'numeric' },
-  { name: 'EffectifsCibles', type: 'numeric' },
-  { name: 'MasseSalariale', type: 'numeric' },
-  { name: 'JoursFormationParAgent', type: 'numeric' },
-  { name: 'AbsenteismeJours', type: 'numeric' },
-  { name: 'AgeMoyen', type: 'numeric' },
-  { name: 'ETPT_SU', type: 'numeric' },
-  { name: 'ETPT_AGCO', type: 'numeric' },
-  { name: 'NbVehicules', type: 'int' },
-  { name: 'TauxVetusteStructure', type: 'numeric' },
-  { name: 'NbPCPortable', type: 'int' },
-  { name: 'NbPCBureau', type: 'int' },
-  { name: 'MontantFormationTransport', type: 'numeric' },
-  { name: 'MontantFormationRepas', type: 'numeric' },
-  { name: 'MontantFormationHebergement', type: 'numeric' },
-  { name: 'MontantAutresmissionsTransport', type: 'numeric' },
-  { name: 'MontantAutresmissionsRepas', type: 'numeric' },
-  { name: 'MontantAutresmissionsHebergement', type: 'numeric' },
-  { name: 'KgCanabis', type: 'numeric' },
-  { name: 'KgCocaine', type: 'numeric' },
-  { name: 'KgTabac', type: 'numeric' },
-  { name: 'NbContentieux', type: 'int' }
-];
+// Colonnes de la table DATA (chargées dynamiquement depuis Grist)
+let DATA_COLUMNS = [];
 
 // Initialisation Grist - compatible toutes versions
 grist.ready({ requiredAccess: 'full' });
@@ -299,7 +274,30 @@ async function loadGristData() {
       return row;
     });
     
-    setStatus(`Prêt — ${G.structures.length} structures, ${G.equivalence.length} correspondances, ${G.existingData.length} lignes DATA`, 'success');
+    // Charger la structure de DATA (colonnes et types)
+    const tables = await grist.docApi.getDocAPI().listTables();
+    const dataTable = tables.tables.find(t => t.id === 'DATA');
+    
+    if (dataTable) {
+      DATA_COLUMNS = dataTable.columns
+        .filter(col => col.id !== 'id' && col.id !== 'manualSort') // Ignorer colonnes système
+        .map(col => ({
+          name: col.id,
+          type: col.type.includes('Ref') ? 'ref' : 
+                col.type.includes('Int') ? 'int' : 
+                col.type.includes('Numeric') ? 'numeric' : 
+                col.type.includes('Date') ? 'date' : 'text',
+          required: col.id === 'Annee' || col.id === 'Structure', // Colonnes clés
+          isFormula: col.isFormula || false
+        }))
+        .filter(col => !col.isFormula); // Ignorer colonnes formules
+      
+      addLog(`${DATA_COLUMNS.length} colonnes DATA détectées : ${DATA_COLUMNS.map(c => c.name).join(', ')}`);
+    } else {
+      addLog('Table DATA non trouvée', 'error');
+    }
+    
+    setStatus(`Prêt — ${G.structures.length} structures, ${G.equivalence.length} correspondances, ${G.existingData.length} lignes DATA, ${DATA_COLUMNS.length} colonnes`, 'success');
   } catch (err) {
     setStatus('Erreur chargement Grist : ' + err.message, 'error');
     console.error('Erreur détaillée:', err);
