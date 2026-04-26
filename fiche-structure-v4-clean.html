@@ -1689,12 +1689,16 @@ function buildQuickNav() {
   const filtrées = S.filter(s => {
     const region = (s[CFG.c.S.region] || "").trim();
     const sigle  = (s[CFG.c.S.sigle]  || "").trim();
-    const parent = (s[CFG.c.S.parent] || "").trim();
+    const parent = s[CFG.c.S.parent]; // Référence numérique
+    
+    // Trouver la structure parent
+    const parentStruct = parent ? S.find(p => p.id === parent) : null;
+    const parentSigle = parentStruct ? (parentStruct[CFG.c.S.sigle] || "").trim() : "";
 
     return (
       ordreRegion.includes(region) &&
       sigle !== "" &&
-      parent === "DGDDI"
+      (parentSigle === "DGDDI" || parentSigle === "DG")
     );
   });
 
