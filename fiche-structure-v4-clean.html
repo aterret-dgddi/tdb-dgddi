@@ -972,40 +972,37 @@ function initGrist() {
 
   console.log('[Init] Connexion à Grist...');
   
-  // Ready
-  grist.ready({ requiredAccess: 'full', columns: [] })
-    .then(() => {
-      console.log('[Init] ✅ grist.ready() OK');
-      
-      // Charger tout immédiatement
-      setTimeout(async () => {
-        console.log('[Init] Chargement Structures...');
-        
-        try {
-          const structData = await fetchTableGrist('Structures');
-          if (structData && structData.length > 0) {
-            D.structures = structData;
-            console.log('[Init] ✅ Structures:', D.structures.length, 'lignes');
-          }
-        } catch(e) {
-          console.error('[Init] Erreur Structures:', e);
-        }
-        
-        // Charger DATA et autres
-        await chargerAutresTables();
-        
-        // Construire interface
-        console.log('[Init] Construction interface...');
-        selectorStructures();
-        if (D.structures && D.structures.length > 0) {
-          selectStructure(D.structures[0].id);
-        }
-        console.log('[Init] ✅ Terminé');
-      }, 100);
-    })
-    .catch(e => {
-      console.error('[Init] ❌ grist.ready() échoué:', e);
-    });
+  // grist.ready() ne retourne PAS de Promise
+  grist.ready({ requiredAccess: 'full', columns: [] });
+  console.log('[Init] ✅ grist.ready() appelé');
+  
+  // Charger tout après un court délai
+  setTimeout(async () => {
+    console.log('[Init] Chargement Structures...');
+    
+    try {
+      const structData = await fetchTableGrist('Structures');
+      if (structData && structData.length > 0) {
+        D.structures = structData;
+        console.log('[Init] ✅ Structures:', D.structures.length, 'lignes');
+      } else {
+        console.warn('[Init] ⚠️ Structures vide ou null');
+      }
+    } catch(e) {
+      console.error('[Init] ❌ Erreur Structures:', e);
+    }
+    
+    // Charger DATA
+    await chargerAutresTables();
+    
+    // Construire interface
+    console.log('[Init] Construction interface...');
+    selectorStructures();
+    if (D.structures && D.structures.length > 0) {
+      selectStructure(D.structures[0].id);
+    }
+    console.log('[Init] ✅ Terminé');
+  }, 300);
 }
 /* ════════════════════════════════════════════════════
    CHARGEMENT DES TABLES SECONDAIRES
