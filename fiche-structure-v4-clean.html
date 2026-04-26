@@ -2408,6 +2408,89 @@ function buildPdfHTML(s, blocs, inclAttn, inclDR){
       +'<div style="'+CSS.secHdr+'">&#9992; Frais de mission &mdash; 4 ans</div>'
       +'<div style="'+CSS.secBody+'">';
 
+    // Préparer les données pour les graphiques
+    var dataParAnnee = {};
+    fm.forEach(function(r){
+      var an = Number(r[cf.annee]);
+      var type = strVal(r[cf.type]);
+      if(!dataParAnnee[an]) dataParAnnee[an] = {total:0, formation:0, autres:0};
+      var mt = n(r[cf.mt]);
+      dataParAnnee[an].total += mt;
+      if(type === 'Formation') dataParAnnee[an].formation += mt;
+      if(type === 'AutresMissions') dataParAnnee[an].autres += mt;
+    });
+    
+    var anneesGraph = Object.keys(dataParAnnee).map(Number).sort();
+    
+    if(anneesGraph.length > 0){
+      // Graphique 1 : Évolution totale
+      html+='<div style="margin-bottom:20px;">';
+      html+='<div style="font-size:11px;font-weight:600;color:#2C3E50;margin-bottom:8px;">📈 Évolution totale des frais de mission</div>';
+      html+='<svg width="100%" height="150" style="border:1px solid #E8EDF2;border-radius:4px;background:#FAFBFC;">';
+      
+      var maxTotal = Math.max.apply(null, anneesGraph.map(function(a){return dataParAnnee[a].total;}));
+      if(maxTotal <= 0) maxTotal = 1;
+      var padding = 40;
+      var graphWidth = 600;
+      var graphHeight = 150;
+      var stepX = (graphWidth - 2*padding) / (anneesGraph.length - 1 || 1);
+      
+      // Ligne
+      var points = anneesGraph.map(function(a, i){
+        var x = padding + i * stepX;
+        var y = graphHeight - padding - (dataParAnnee[a].total / maxTotal) * (graphHeight - 2*padding);
+        return x + ',' + y;
+      }).join(' ');
+      
+      html+='<polyline points="'+points+'" fill="none" stroke="#0066CC" stroke-width="2"/>';
+      
+      // Points et labels
+      anneesGraph.forEach(function(a, i){
+        var x = padding + i * stepX;
+        var y = graphHeight - padding - (dataParAnnee[a].total / maxTotal) * (graphHeight - 2*padding);
+        html+='<circle cx="'+x+'" cy="'+y+'" r="4" fill="#0066CC"/>';
+        html+='<text x="'+x+'" y="'+(graphHeight-10)+'" text-anchor="middle" font-size="10" fill="#5A6C7D">'+a+'</text>';
+        html+='<text x="'+x+'" y="'+(y-10)+'" text-anchor="middle" font-size="10" font-weight="600" fill="#0066CC">'+fmt(dataParAnnee[a].total)+'€</text>';
+      });
+      
+      html+='</svg></div>';
+      
+      // Graphique 2 : Formation vs Autres missions
+      html+='<div style="margin-bottom:20px;">';
+      html+='<div style="font-size:11px;font-weight:600;color:#2C3E50;margin-bottom:8px;">📊 Formation vs Autres missions</div>';
+      html+='<svg width="100%" height="180" style="border:1px solid #E8EDF2;border-radius:4px;background:#FAFBFC;">';
+      
+      var maxComp = Math.max.apply(null, anneesGraph.map(function(a){return Math.max(dataParAnnee[a].formation, dataParAnnee[a].autres);}));
+      if(maxComp <= 0) maxComp = 1;
+      var barWidth = (graphWidth - 2*padding) / anneesGraph.length / 2.5;
+      var barGraphHeight = 180;
+      
+      anneesGraph.forEach(function(a, i){
+        var x = padding + i * (graphWidth - 2*padding) / anneesGraph.length;
+        
+        // Barre Formation
+        var hF = (dataParAnnee[a].formation / maxComp) * (barGraphHeight - 60);
+        html+='<rect x="'+(x)+'" y="'+(barGraphHeight-40-hF)+'" width="'+barWidth+'" height="'+hF+'" fill="#28A745" opacity="0.8"/>';
+        html+='<text x="'+(x+barWidth/2)+'" y="'+(barGraphHeight-45-hF)+'" text-anchor="middle" font-size="9" fill="#28A745" font-weight="600">'+fmt(dataParAnnee[a].formation)+'</text>';
+        
+        // Barre Autres missions
+        var hA = (dataParAnnee[a].autres / maxComp) * (barGraphHeight - 60);
+        html+='<rect x="'+(x+barWidth+5)+'" y="'+(barGraphHeight-40-hA)+'" width="'+barWidth+'" height="'+hA+'" fill="#FFA500" opacity="0.8"/>';
+        html+='<text x="'+(x+barWidth+5+barWidth/2)+'" y="'+(barGraphHeight-45-hA)+'" text-anchor="middle" font-size="9" fill="#FFA500" font-weight="600">'+fmt(dataParAnnee[a].autres)+'</text>';
+        
+        // Année
+        html+='<text x="'+(x+barWidth+2.5)+'" y="'+(barGraphHeight-10)+'" text-anchor="middle" font-size="10" fill="#5A6C7D">'+a+'</text>';
+      });
+      
+      // Légende
+      html+='<rect x="'+(graphWidth-180)+'" y="10" width="15" height="15" fill="#28A745" opacity="0.8"/>';
+      html+='<text x="'+(graphWidth-160)+'" y="21" font-size="10" fill="#2C3E50">Formation</text>';
+      html+='<rect x="'+(graphWidth-80)+'" y="10" width="15" height="15" fill="#FFA500" opacity="0.8"/>';
+      html+='<text x="'+(graphWidth-60)+'" y="21" font-size="10" fill="#2C3E50">Autres</text>';
+      
+      html+='</svg></div>';
+    }
+
     var hasFM=false;
     typesFM.forEach(function(t){
       var rows=fm.filter(function(r){return strVal(r[cf.type])===t;}).sort(function(a,b){return Number(a[cf.annee])-Number(b[cf.annee]);});
@@ -2421,9 +2504,9 @@ function buildPdfHTML(s, blocs, inclAttn, inclDR){
         html+='<tr>'
           +'<td style="'+CSS.td+'font-weight:bold;">'+Number(r[cf.annee])+'</td>'
           +'<td style="'+CSS.tdR+'font-weight:bold;">'+fmt(mt)+'&#160;&euro;</td>'
-          +'<td style="'+CSS.tdR+'">'+tr+'%</td>'
-          +'<td style="'+CSS.tdR+'">'+hb+'%</td>'
-          +'<td style="'+CSS.tdR+'">'+rp+'%</td>'
+          +'<td style="'+CSS.tdR+'">'+fmt(tr)+'&#160;&euro;</td>'
+          +'<td style="'+CSS.tdR+'">'+fmt(hb)+'&#160;&euro;</td>'
+          +'<td style="'+CSS.tdR+'">'+fmt(rp)+'&#160;&euro;</td>'
           +'</tr>';
       });
       html+='</tbody></table>';
@@ -2815,15 +2898,19 @@ function renderFraisMission(data,cms){
     // Tableau avec montants détaillés Transport / Hébergement / Repas
     const tableRows=rows.map(r=>{
       const mt=n(r[c.mt]),tr=n(r[c.tr]),hb=n(r[c.hb]),rp=n(r[c.rp]);
-      // tr/hb/rp sont des % du total dans la table
-      const mtTr=mt?Math.round(mt*tr/100):0;
-      const mtHb=mt?Math.round(mt*hb/100):0;
-      const mtRp=mt?Math.round(mt*rp/100):0;
+      // tr/hb/rp sont les montants bruts - calculer les pourcentages
+      const mtTr=tr;
+      const mtHb=hb;
+      const mtRp=rp;
+      const total = mtTr + mtHb + mtRp;
+      const pctTr = total > 0 ? Math.round(mtTr / total * 100) : 0;
+      const pctHb = total > 0 ? Math.round(mtHb / total * 100) : 0;
+      const pctRp = total > 0 ? Math.round(mtRp / total * 100) : 0;
       const bw=Math.round(mt/maxAll*100);
       return`<tr>
         <td class="bar-year" style="padding:3px 6px;font-size:11px;font-weight:700;color:var(--gris2);white-space:nowrap;">${r[c.annee]}</td>
         <td style="padding:3px 6px;width:30%">
-          <div class="bar-outer" style="width:${bw}%"><div class="bar-seg bs-transport" style="width:${tr}%"></div><div class="bar-seg bs-heberg" style="width:${hb}%"></div><div class="bar-seg bs-repas" style="width:${rp}%"></div></div>
+          <div class="bar-outer" style="width:${bw}%"><div class="bar-seg bs-transport" style="width:${pctTr}%"></div><div class="bar-seg bs-heberg" style="width:${pctHb}%"></div><div class="bar-seg bs-repas" style="width:${pctRp}%"></div></div>
         </td>
         <td class="bar-total" style="padding:3px 8px;text-align:right;font-weight:700;white-space:nowrap;">${fmt(mt)} €</td>
         <td style="padding:3px 6px;text-align:right;font-size:10.5px;color:#1351A8;white-space:nowrap;">${fmt(mtTr)} €</td>
