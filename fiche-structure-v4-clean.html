@@ -2993,8 +2993,8 @@ function renderFraisMission(data,cms){
     
     // Légende
     graphHTML += '<rect x="10" y="10" width="10" height="10" fill="#1351A8"/><text x="23" y="19" font-size="9" fill="#2C3E50">Transport</text>';
-    graphHTML += '<rect x="90" y="10" width="10" height="10" fill="#C05A00"/><text x="103" y="19" font-size="9" fill="#2C3E50">Héberg.</text>';
-    graphHTML += '<rect x="165" y="10" width="10" height="10" fill="#1A6B3C"/><text x="178" y="19" font-size="9" fill="#2C3E50">Repas</text>';
+    graphHTML += '<rect x="80" y="10" width="10" height="10" fill="#C05A00"/><text x="93" y="19" font-size="9" fill="#2C3E50">Héberg.</text>';
+    graphHTML += '<rect x="145" y="10" width="10" height="10" fill="#1A6B3C"/><text x="158" y="19" font-size="9" fill="#2C3E50">Repas</text>';
     
     graphHTML += '</svg></div>';
     
@@ -3029,7 +3029,7 @@ function renderFraisMission(data,cms){
     
     // Légende
     graphHTML += '<rect x="10" y="10" width="10" height="10" fill="#28A745"/><text x="23" y="19" font-size="9" fill="#2C3E50">Formation</text>';
-    graphHTML += '<rect x="90" y="10" width="10" height="10" fill="#FF8C00"/><text x="103" y="19" font-size="9" fill="#2C3E50">Autres</text>';
+    graphHTML += '<rect x="85" y="10" width="10" height="10" fill="#FF8C00"/><text x="98" y="19" font-size="9" fill="#2C3E50">Autres</text>';
     
     graphHTML += '</svg></div>';
     
@@ -3046,15 +3046,23 @@ function renderFraisMission(data,cms){
       // Calculer ETPT total (parent + filles)
       let etptTotal = 0;
       const rhAnnee = (D.rh||[]).filter(rh=>Number(rh.Annee)===an);
-      const rhCur = rhAnnee.find(rh=>rh.Structure===_curId);
-      if(rhCur) etptTotal += n(rhCur.ETPTtotal);
-      if(_fById){
-        const filles = fEnfantsDR({id:_curId});
+      
+      // ETPT de la structure courante
+      const idStruct = r[c.struct]; // ID de la structure de la ligne frais mission
+      const rhCur = rhAnnee.find(rh=>rh.Structure===idStruct);
+      if(rhCur) {
+        etptTotal += n(rhCur.ETPTtotal);
+      }
+      
+      // ETPT des filles (si c'est une DI/SCN)
+      if(_fById && _fById[idStruct]){
+        const filles = fEnfantsDR(_fById[idStruct]);
         filles.forEach(f=>{
           const rhF = rhAnnee.find(rh=>rh.Structure===f.id);
           if(rhF) etptTotal += n(rhF.ETPTtotal);
         });
       }
+      
       const parEtpt = etptTotal > 0 ? Math.round(mt / etptTotal) : 0;
       
       return`<tr>
