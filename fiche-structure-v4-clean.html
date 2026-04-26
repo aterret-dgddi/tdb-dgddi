@@ -1063,20 +1063,38 @@ function transformDataToLegacy(dataRows) {
       });
     }
     
-    // Frais de mission
-    const tr = (row.MontantFormationTransport || 0) + (row.MontantAutresmissionsTransport || 0);
-    const hb = (row.MontantFormationHebergement || 0) + (row.MontantAutresmissionsHebergement || 0);
-    const rp = (row.MontantFormationRepas || 0) + (row.MontantAutresmissionsRepas || 0);
+    // Frais de mission - créer 2 lignes : Formation et AutresMissions
+    const trF = row.MontantFormationTransport || 0;
+    const hbF = row.MontantFormationHebergement || 0;
+    const rpF = row.MontantFormationRepas || 0;
+    const totF = trF + hbF + rpF;
     
-    if (tr > 0 || hb > 0 || rp > 0) {
+    if (totF > 0) {
       fraisMission.push({
         Structure: sid,
         Annee: an,
-        TypeMission: ['L'],
-        MontantTransport: tr,
-        MontantHebergement: hb,
-        MontantRepas: rp,
-        MontantTotal: tr + hb + rp
+        TypeMission: ['L', 'Formation'],
+        MontantTotal: totF,
+        MontantTransport: trF,
+        MontantHebergement: hbF,
+        MontantRepas: rpF
+      });
+    }
+    
+    const trA = row.MontantAutresmissionsTransport || 0;
+    const hbA = row.MontantAutresmissionsHebergement || 0;
+    const rpA = row.MontantAutresmissionsRepas || 0;
+    const totA = trA + hbA + rpA;
+    
+    if (totA > 0) {
+      fraisMission.push({
+        Structure: sid,
+        Annee: an,
+        TypeMission: ['L', 'AutresMissions'],
+        MontantTotal: totA,
+        MontantTransport: trA,
+        MontantHebergement: hbA,
+        MontantRepas: rpA
       });
     }
   });
