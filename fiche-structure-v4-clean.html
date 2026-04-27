@@ -3239,29 +3239,6 @@ function renderInformatique(s, cm_list){
   html += renderCmt(cm,'informatique',_curId);
   html += '</div></div>';
   return html;
-});
-
-  var vals=[];
-  structs.forEach(function(s){
-    var anneesConso=ANNEES.filter(function(a){
-      return (D.informatique||[]).some(function(r){return n(r[c.struct])===s.id&&Number(r[c.annee])===a;});
-    });
-    if(!anneesConso.length) return;
-    var all=[s].concat(fDescendants(s));
-    var moyDep=anneesConso.reduce(function(tot,a){
-      var row=(D.informatique||[]).find(function(r){return n(r[c.struct])===s.id&&Number(r[c.annee])===a;});
-      return tot+(row?n(row[c.dep]):0);
-    },0)/anneesConso.length;
-    var etptArr=anneesConso.map(function(a){
-      return all.reduce(function(t,d){
-        var rh=(D.rh||[]).find(function(r){return n(r[rhC.struct])===d.id&&Number(r[rhC.annee])===a;});
-        return t+(rh?Math.round(n(rh[rhC.etpt_tot])||n(rh[rhC.etpt_su])+n(rh[rhC.etpt_agco])):0);
-      },0);
-    }).filter(Boolean);
-    var moyEtpt=etptArr.length?etptArr.reduce(function(a,b){return a+b;},0)/etptArr.length:0;
-    if(moyEtpt>0) vals.push(moyDep/moyEtpt);
-  });
-  return vals.length?vals.reduce(function(a,b){return a+b;},0)/vals.length:0;
 }
 
 function calculerTauxRef(typeRef, siglesOM){
