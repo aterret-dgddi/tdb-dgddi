@@ -631,10 +631,7 @@ body{font-family:'Cabin',sans-serif;background:#F2F5FA;color:var(--gris1);line-h
 </div>
 
 <!-- ═══════════ SÉLECTEUR ANNÉE ═══════════ -->
-<div id="year-bar" style="display:none;background:#fff;border-bottom:1px solid var(--bord);padding:6px 18px;display:flex;align-items:center;gap:10px;">
-  <span style="font-size:10.5px;color:var(--gris3);flex-shrink:0;">Année :</span>
-  <div id="year-btns" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-</div>
+
 <!-- ═══════════ NAVIGATION RAPIDE ═══════════ -->
 <div id="quick-nav">
   <span class="qnav-label">Accès rapide :</span>
@@ -798,24 +795,12 @@ function getAnneesDisponibles(){
 }
 
 /* Construit la barre des boutons d'année et retourne l'année sélectionnée */
-function buildYearBar(){
-  const annees=getAnneesDisponibles();
-  const bar=document.getElementById('year-btns');
-  const barWrap=document.getElementById('year-bar');
-  if(!bar||!annees.length){if(barWrap)barWrap.style.display='none';return;}
-  barWrap.style.display='flex';
-  // Sélectionner l'année la plus récente par défaut si pas encore définie
-  if(!_annee||!annees.includes(_annee)) _annee=annees[0];
-  bar.innerHTML=annees.map(function(a){
-    var active=a===_annee;
-    return'<button onclick="setAnnee('+a+')" style="padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid '+(active?'var(--rep)':'var(--bord)')+';background:'+(active?'var(--rep)':'var(--gris4)')+';color:'+(active?'#fff':'var(--gris2)')+';">'+a+'</button>';
-  }).join('');
-}
+
 
 /* Change l'année sélectionnée et re-render la fiche */
 function setAnnee(a){
   _annee=a;
-  buildYearBar();
+  // buildYearBar(); // Supprimé
   if(current) renderFiche(current);
 }
 
@@ -933,7 +918,7 @@ const CFG={
 let D={};
 let current=null;
 let _curId=0;   // id de la structure en cours de rendu
-let _annee=null;  // année sélectionnée (null = la plus récente disponible)
+// let _annee=null; // Supprimé  // année sélectionnée (null = la plus récente disponible)
 let pdfFormat='single';
 let selectedStructsForPdf=new Set();
 let focusedOptIdx=-1;
@@ -1353,7 +1338,7 @@ function build(){
   buildDropdown();
   _fBySigle=null; _fById=null; // reconstruire index
   buildQuickNav();
-  buildYearBar();
+  // buildYearBar(); // Supprimé
   buildPdfMultiList();
   // Auto-sélection première structure
   const S=D.structures||[];
@@ -3111,9 +3096,9 @@ function renderInformatique(s, cm_list){
   data.forEach(r=>{
     const an = Number(r[c.annee]);
     if(!dataParAnnee[an]) dataParAnnee[an] = {depenses:0, portable:0, bureau:0, etpt:0};
-    dataParAnnee[an].depenses += n(r[c.depenses]);
-    dataParAnnee[an].portable += n(r[c.portable]);
-    dataParAnnee[an].bureau += n(r[c.bureau]);
+    dataParAnnee[an].depenses += n(r[c.dep]);
+    dataParAnnee[an].portable += n(r[c.pcp]);
+    dataParAnnee[an].bureau += n(r[c.pcb]);
   });
   
   // Ajouter ETPT par année
