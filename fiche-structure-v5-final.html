@@ -3093,12 +3093,26 @@ function renderInformatique(s, cm_list){
     dataParAnnee[an].bureau += n(r[c.pcb]);
   });
   
-  // Ajouter ETPT par année
+  // Ajouter ETPT par année (structure + filles)
   const rhData = D.rh || [];
   Object.keys(dataParAnnee).forEach(an=>{
     const rhAn = rhData.filter(rh=>Number(rh.Annee)===Number(an));
+    let etptTotal = 0;
+    
+    // ETPT de la structure courante
     const rhCur = rhAn.find(rh=>rh.Structure===s.id);
-    if(rhCur) dataParAnnee[an].etpt = n(rhCur.ETPTtotal);
+    if(rhCur) etptTotal += n(rhCur.ETPTtotal);
+    
+    // ETPT des filles (si DI/SCN/Siège)
+    if(_fById && _fById[s.id]){
+      const filles = fEnfantsDR(_fById[s.id]);
+      filles.forEach(f=>{
+        const rhF = rhAn.find(rh=>rh.Structure===f.id);
+        if(rhF) etptTotal += n(rhF.ETPTtotal);
+      });
+    }
+    
+    dataParAnnee[an].etpt = etptTotal;
   });
   
   const annees = Object.keys(dataParAnnee).map(Number).sort();
@@ -3208,6 +3222,7 @@ function renderInformatique(s, cm_list){
   annees.forEach(a=>{
     const d = dataParAnnee[a];
     const tot = d.portable + d.bureau;
+    // Le taux est déjà calculé avec ETPT total dans dataParAnnee
     const taux = d.etpt > 0 ? Math.round(tot / d.etpt * 100) : 0;
     html += '<tr>';
     html += `<td style="padding:3px 6px;font-size:11px;font-weight:700;">${a}</td>`;
