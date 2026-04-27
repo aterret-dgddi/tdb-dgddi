@@ -841,6 +841,12 @@ function fmt(x){
   if(x==null||isNaN(x)) return '0';
   return Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ');
 }
+function fArr(v){
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  return [v];
+}
+
 
 
 const LOGO_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg/250px-Logo_des_Douanes_Fran%C3%A7aises.svg.png';
