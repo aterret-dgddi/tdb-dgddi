@@ -3089,178 +3089,156 @@ function renderFraisMission(data,cms){
   };
   return`<div class="section full"><div class="sec-hdr"><span class="ico">✈️</span><h3>Frais de mission — 4 ans</h3></div><div class="sec-body">${graphHTML}${types.map(t=>renderType(t)).join('')}<div class="legend"><div class="leg-item"><div class="leg-dot" style="background:#1351A8"></div>Transport</div><div class="leg-item"><div class="leg-dot" style="background:#C05A00"></div>Hébergement</div><div class="leg-item"><div class="leg-dot" style="background:#1A6B3C"></div>Repas</div></div>${renderCmt(cm,'fraisMission',_curId)}</div></div>`;
 }
-/* ════════════════════════════════════════════════════
-   BLOC INFORMATIQUE
-   Affiché pour DI, SCN, DR autonomes
-   4 années fixes (2022-2025) sans détail des filles
-   ETPT consolidé DI+DR pour les DI
-════════════════════════════════════════════════════ */
 function renderInformatique(s, cm_list){
-  if(!_fBySigle) fBuildIdx();
-  const c = CFG.c.IT;
-  const cm = cm_list.find(x => x[CFG.c.CM.bloc] === 'informatique');
-  const typeS = strVal(s[CFG.c.S.type]);
-  const sigle = strVal(s[CFG.c.S.sigle] || '').trim();
-
-  // Affiché uniquement pour DI, SCN, DR autonomes, Siège
-  const TYPES_IT = new Set(['DI','SCN','Siège','siège','SIEGE','DR']);
-  if(!TYPES_IT.has(typeS)) return '';
-
-  const ANNEES = [2022, 2023, 2024, 2025];
+  const c=CFG.c.IT;
+  const cm=cm_list.find(x=>x[CFG.c.CM.bloc]==='informatique');
+  
+  // Récupérer les données informatiques pour cette structure
   const itAll = D.informatique || [];
-  const rhAll = D.rh || [];
-
-  // Données informatiques pour cette structure
-  const itRows = itAll.filter(r => n(r[c.struct]) === s.id);
-  if(!itRows.length) return secEmpty('💻','Informatique',null,'','informatique');
-
-  // ETPT consolidé (DI = propre + filles DR)
-  function etptAnnee(annee){
-    var all = [s].concat(fDescendants(s));
-    var total = 0;
-    all.forEach(d => {
-      var row = rhAll.find(r => n(r[CFG.c.RH.struct]) === d.id && Number(r[CFG.c.RH.annee]) === annee);
-      if(row) total += Math.round(n(row[CFG.c.RH.etpt_tot]) || n(row[CFG.c.RH.etpt_su]) + n(row[CFG.c.RH.etpt_agco]));
+  const data = itAll.filter(r=>n(r[c.struct])===s.id);
+  
+  if(!data.length) return secEmpty('💻','Informatique',cm,'full','informatique');
+  
+  // Préparer données par année
+  const dataParAnnee = {};
+  data.forEach(r=>{
+    const an = Number(r[c.annee]);
+    if(!dataParAnnee[an]) dataParAnnee[an] = {depenses:0, portable:0, bureau:0, etpt:0};
+    dataParAnnee[an].depenses += n(r[c.depenses]);
+    dataParAnnee[an].portable += n(r[c.portable]);
+    dataParAnnee[an].bureau += n(r[c.bureau]);
+  });
+  
+  // Ajouter ETPT par année
+  const rhData = D.rh || [];
+  Object.keys(dataParAnnee).forEach(an=>{
+    const rhAn = rhData.filter(rh=>Number(rh.Annee)===Number(an));
+    const rhCur = rhAn.find(rh=>rh.Structure===s.id);
+    if(rhCur) dataParAnnee[an].etpt = n(rhCur.ETPTtotal);
+  });
+  
+  const annees = Object.keys(dataParAnnee).map(Number).sort();
+  if(!annees.length) return secEmpty('💻','Informatique',cm,'full','informatique');
+  
+  const anneeCourante = Math.max(...annees);
+  const dataCur = dataParAnnee[anneeCourante] || {depenses:0, portable:0, bureau:0, etpt:0};
+  
+  const totalPC = dataCur.portable + dataCur.bureau;
+  const tauxEquip = dataCur.etpt > 0 ? Math.round(totalPC / dataCur.etpt * 100) : 0;
+  const coutMoyenETPT = dataCur.etpt > 0 ? Math.round(dataCur.depenses / dataCur.etpt) : 0;
+  
+  // Mini-graphiques pour KPI
+  const miniGraphTaux = annees.length > 1 ? (() => {
+    const vals = annees.map(a=>{
+      const d = dataParAnnee[a];
+      const pc = d.portable + d.bureau;
+      return d.etpt > 0 ? Math.round(pc / d.etpt * 100) : 0;
     });
-    return total;
+    const max = Math.max(...vals, 1);
+    const pts = vals.map((v,i)=>`${i*20},${30-(v/max*25)}`).join(' ');
+    return `<svg width="60" height="30" style="margin-left:8px;"><polyline points="${pts}" fill="none" stroke="#0066CC" stroke-width="1.5"/></svg>`;
+  })() : '';
+  
+  const miniGraphCout = annees.length > 1 ? (() => {
+    const vals = annees.map(a=>{
+      const d = dataParAnnee[a];
+      return d.etpt > 0 ? Math.round(d.depenses / d.etpt) : 0;
+    });
+    const max = Math.max(...vals, 1);
+    const pts = vals.map((v,i)=>`${i*20},${30-(v/max*25)}`).join(' ');
+    return `<svg width="60" height="30" style="margin-left:8px;"><polyline points="${pts}" fill="none" stroke="#28A745" stroke-width="1.5"/></svg>`;
+  })() : '';
+  
+  let html = `<div class="section full"><div class="sec-hdr"><span class="ico">💻</span><h3>Informatique — Année ${anneeCourante}</h3></div><div class="sec-body">`;
+  
+  // KPI
+  html += '<div class="kpi-row">';
+  html += `<div class="kpi"><div class="kpi-label">PC portables</div><div class="kpi-val">${fmt(dataCur.portable)}</div></div>`;
+  html += `<div class="kpi"><div class="kpi-label">PC bureau</div><div class="kpi-val">${fmt(dataCur.bureau)}</div></div>`;
+  html += `<div class="kpi"><div class="kpi-label">Taux équipement${miniGraphTaux}</div><div class="kpi-val">${tauxEquip}%</div></div>`;
+  html += `<div class="kpi"><div class="kpi-label">Coût/ETPT${miniGraphCout}</div><div class="kpi-val">${fmt(coutMoyenETPT)} €</div></div>`;
+  html += '</div>';
+  
+  if(annees.length > 1){
+    const svgW=320, svgH=180, pad=40;
+    const barW=40, spacing=(svgW-2*pad)/annees.length;
+    
+    html += '<div style="display:flex;gap:16px;margin:20px 0;">';
+    
+    // GRAPHIQUE 1 : Dépenses bureautique
+    html += '<div style="flex:1;"><div style="font-size:11px;font-weight:600;color:#2C3E50;margin-bottom:8px;">💰 Dépenses bureautique</div>';
+    html += `<svg width="100%" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" style="border:1px solid #E8EDF2;border-radius:4px;background:#FAFBFC;">`;
+    
+    const maxDep = Math.max(...annees.map(a=>dataParAnnee[a].depenses), 1);
+    annees.forEach((a,i)=>{
+      const x = pad + i*spacing + spacing/2 - barW/2;
+      const dep = dataParAnnee[a].depenses;
+      const h = (dep / maxDep) * (svgH - 60);
+      html += `<rect x="${x}" y="${svgH-40-h}" width="${barW}" height="${h}" fill="#0066CC" opacity="0.85"/>`;
+      if(dep > 0) html += `<text x="${x+barW/2}" y="${svgH-43-h}" text-anchor="middle" font-size="9" font-weight="600" fill="#0066CC">${fmt(dep)}€</text>`;
+      html += `<text x="${x+barW/2}" y="${svgH-10}" text-anchor="middle" font-size="10" fill="#5A6C7D">${a}</text>`;
+    });
+    html += '</svg></div>';
+    
+    // GRAPHIQUE 2 : PC portable vs bureau
+    html += '<div style="flex:1;"><div style="font-size:11px;font-weight:600;color:#2C3E50;margin-bottom:8px;">💻 Postes de travail</div>';
+    html += `<svg width="100%" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" style="border:1px solid #E8EDF2;border-radius:4px;background:#FAFBFC;">`;
+    
+    const maxPC = Math.max(...annees.map(a=>dataParAnnee[a].portable + dataParAnnee[a].bureau), 1);
+    annees.forEach((a,i)=>{
+      const x = pad + i*spacing + spacing/2 - barW/2;
+      const port = dataParAnnee[a].portable;
+      const bur = dataParAnnee[a].bureau;
+      const hPort = (port / maxPC) * (svgH - 60);
+      const hBur = (bur / maxPC) * (svgH - 60);
+      
+      // Portable (bleu foncé)
+      html += `<rect x="${x}" y="${svgH-40-hPort-hBur}" width="${barW}" height="${hPort}" fill="#1351A8"/>`;
+      // Bureau (bleu clair)
+      html += `<rect x="${x}" y="${svgH-40-hBur}" width="${barW}" height="${hBur}" fill="#4A90E2"/>`;
+      
+      const tot = port + bur;
+      if(tot > 0) html += `<text x="${x+barW/2}" y="${svgH-45-hPort-hBur}" text-anchor="middle" font-size="9" font-weight="600" fill="#2C3E50">${fmt(tot)}</text>`;
+      html += `<text x="${x+barW/2}" y="${svgH-10}" text-anchor="middle" font-size="10" fill="#5A6C7D">${a}</text>`;
+    });
+    
+    // Légende
+    html += '<rect x="10" y="10" width="10" height="10" fill="#1351A8"/><text x="23" y="19" font-size="9" fill="#2C3E50">Portable</text>';
+    html += '<rect x="80" y="10" width="10" height="10" fill="#4A90E2"/><text x="93" y="19" font-size="9" fill="#2C3E50">Bureau</text>';
+    
+    html += '</svg></div>';
+    html += '</div>';
   }
-
-  // Données par année
-  var data = ANNEES.map(annee => {
-    var row = itRows.find(r => Number(r[c.annee]) === annee);
-    var etpt = etptAnnee(annee);
-    var dep = row ? n(row[c.dep]) : null;
-    var pcp = row ? n(row[c.pcp]) : null;
-    var pcb = row ? n(row[c.pcb]) : null;
-    var pctot = (pcp !== null && pcb !== null) ? pcp + pcb : null;
-    var taux = (pctot !== null && etpt > 0) ? (pctot / etpt * 100) : null;
-    return { annee, dep, pcp, pcb, pctot, etpt, taux };
+  
+  // Tableau détaillé
+  html += '<div class="sub-title">Détail par année</div>';
+  html += '<table style="width:100%;border-collapse:collapse;margin-bottom:12px;"><thead><tr>';
+  html += '<th style="padding:3px 6px;font-size:9.5px;color:var(--gris3);font-weight:700;text-align:left;border-bottom:1px solid var(--bord);">Année</th>';
+  html += '<th style="padding:3px 6px;font-size:9.5px;color:var(--gris3);font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">Dépenses</th>';
+  html += '<th style="padding:3px 6px;font-size:9.5px;color:var(--gris3);font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">PC portable</th>';
+  html += '<th style="padding:3px 6px;font-size:9.5px;color:var(--gris3);font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">PC bureau</th>';
+  html += '<th style="padding:3px 6px;font-size:9.5px;color:var(--gris3);font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">Total PC</th>';
+  html += '<th style="padding:3px 6px;font-size:9.5px;color:var(--gris3);font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">Taux équip.</th>';
+  html += '</tr></thead><tbody>';
+  
+  annees.forEach(a=>{
+    const d = dataParAnnee[a];
+    const tot = d.portable + d.bureau;
+    const taux = d.etpt > 0 ? Math.round(tot / d.etpt * 100) : 0;
+    html += '<tr>';
+    html += `<td style="padding:3px 6px;font-size:11px;font-weight:700;">${a}</td>`;
+    html += `<td style="padding:3px 6px;text-align:right;font-size:10.5px;">${d.depenses > 0 ? fmt(d.depenses)+' €' : '-'}</td>`;
+    html += `<td style="padding:3px 6px;text-align:right;font-size:10.5px;">${fmt(d.portable)}</td>`;
+    html += `<td style="padding:3px 6px;text-align:right;font-size:10.5px;">${fmt(d.bureau)}</td>`;
+    html += `<td style="padding:3px 6px;text-align:right;font-size:10.5px;font-weight:600;">${fmt(tot)}</td>`;
+    html += `<td style="padding:3px 6px;text-align:right;font-size:10.5px;color:#0066CC;font-weight:600;">${taux}%</td>`;
+    html += '</tr>';
   });
-
-  var anneesConso = data.filter(d => d.dep !== null);
-
-  // Coût moyen 4 ans
-  var moyDep = anneesConso.length ? anneesConso.reduce((s,d)=>s+(d.dep||0),0)/anneesConso.length : 0;
-  var etptArr = anneesConso.map(d => d.etpt).filter(Boolean);
-  var moyEtpt = etptArr.length ? etptArr.reduce((a,b)=>a+b,0)/etptArr.length : 0;
-  var coutMoyen4ans = moyEtpt > 0 ? Math.round(moyDep / moyEtpt) : null;
-
-  // Taux équipement année la plus récente
-  var derniere = anneesConso[anneesConso.length - 1];
-  var tauxEquip = derniere ? derniere.taux : null;
-
-  // Moyennes de référence
-var mo = (D.moyennes || []).find(x => Number(x.Annee) === ANNEES[ANNEES.length-1]) 
-         || (D.moyennes || [])[0] 
-         || {};
-
- // Détection Outremer fiable via la colonne Region
-var region = strVal(s[CFG.c.S.region] || '').trim();
-var isOM = (region === 'Outremer');
-
-
-  var refLabel, refDep, refTaux;
-
-  if(typeS === 'DI' || typeS === 'Siège' || ['siège','SIEGE'].includes(typeS)){
-    refLabel = 'Moy. DI';
-    refDep = nPct(mo[CFG.c.MO.info_dep_di]) || calculerMoyRef('DI', null);
-    refTaux = nPct(mo[CFG.c.MO.info_tx_di]) || calculerTauxRef('DI', null);
-  } else if(typeS === 'SCN'){
-    refLabel = 'Moy. SCN';
-    refDep = nPct(mo[CFG.c.MO.info_dep_scn]) || calculerMoyRef('SCN', null);
-    refTaux = nPct(mo[CFG.c.MO.info_tx_scn]) || calculerTauxRef('SCN', null);
-  } else {
-  refLabel = 'Moy. Outremer';
-  refDep = nPct(mo[CFG.c.MO.info_dep_om]) || calculerMoyRef('DR', null);
-  refTaux = nPct(mo[CFG.c.MO.info_tx_om]) || calculerTauxRef('DR', null);
-}
-
-
-  // Moyenne nationale (nouveau)
-  var refDepNat = nPct(mo[CFG.c.MO.info_dep_nat]) || calculerMoyRef(null, null);
-  var refTauxNat = nPct(mo[CFG.c.MO.info_tx_nat]) || calculerTauxRef(null, null);
-
-  // Tableau 4 années
-  var libelles = {
-    'Dépenses (€)': 'Dépenses (€)',
-    'PC Portable': 'PC Portable',
-    'PC Bureau': 'PC Bureau',
-    'Total PC': 'Total PC',
-    'ETPT': 'ETPT',
-    'Taux équip. (%)': 'Taux équip. (%)'
-  };
-
-  var tblCols = '<div class="info-annee-col"><div class="info-annee-hdr">Indicateur</div>'
-    + Object.values(libelles).map(l => '<div class="info-row-lbl">'+l+'</div>').join('')
-    + '</div>';
-
-  data.forEach(d => {
-    var vals = [
-      d.dep !== null ? fmt(Math.round(d.dep))+' €' : '—',
-      d.pcp !== null ? d.pcp : '—',
-      d.pcb !== null ? d.pcb : '—',
-      d.pctot !== null ? d.pctot : '—',
-      d.etpt || '—',
-      d.taux !== null ? d.taux.toFixed(1)+'%' : '—',
-    ];
-    tblCols += '<div class="info-annee-col">'
-      + '<div class="info-annee-hdr">'+d.annee+'</div>'
-      + vals.map(v => '<div class="info-annee-val">'+v+'</div>').join('')
-      + '</div>';
-  });
-
-  // Coloration KPI
-  var clsDep = refDep && coutMoyen4ans ? (coutMoyen4ans > refDep*1.1 ? 'rouge' : coutMoyen4ans < refDep*0.9 ? 'vert' : '') : '';
-  var clsTaux = refTaux && tauxEquip ? (tauxEquip < refTaux*0.9 ? 'rouge' : tauxEquip > refTaux*1.1 ? 'vert' : '') : '';
-
-  return `
-  <div class="section full">
-    <div class="sec-hdr"><span class="ico">💻</span><h3>Informatique bureautique</h3></div>
-    <div class="sec-body">
-
-      <div class="info-annees">${tblCols}</div>
-
-      <div class="info-indicateurs">
-
-        <div class="info-kpi-card">
-          <div class="info-kpi-val ${clsTaux}">${tauxEquip!==null?tauxEquip.toFixed(1)+'%':'—'}</div>
-          <div class="info-kpi-lbl">Taux d'équipement (${ANNEES[ANNEES.length-1]})</div>
-          <div class="info-ref">
-            <span class="info-ref-item"><span class="info-ref-dot type"></span>${refLabel} : ${refTaux?refTaux.toFixed(1)+'%':'—'}</span>
-            <span class="info-ref-item"><span class="info-ref-dot nat"></span>Moy. nationale : ${refTauxNat?refTauxNat.toFixed(1)+'%':'—'}</span>
-          </div>
-        </div>
-
-        <div class="info-kpi-card">
-          <div class="info-kpi-val ${clsDep}">${coutMoyen4ans!==null?fmt(coutMoyen4ans)+' €':'—'}</div>
-          <div class="info-kpi-lbl">Coût moyen par ETPT (2022-2025)</div>
-          <div class="info-ref">
-            <span class="info-ref-item"><span class="info-ref-dot type"></span>${refLabel} : ${refDep?fmt(Math.round(refDep))+' €':'—'}</span>
-            <span class="info-ref-item"><span class="info-ref-dot nat"></span>Moy. nationale : ${refDepNat?fmt(Math.round(refDepNat))+' €':'—'}</span>
-          </div>
-        </div>
-
-      </div>
-
-      ${(cm?renderCmt(cm,'informatique',_curId):'')}
-
-    </div>
-  </div>`;
-}
-
-
-/* Calcule dynamiquement la moyenne de référence pour un type de structure */
-function calculerMoyRef(typeRef, siglesOM){
-  var c=CFG.c.IT, rhC=CFG.c.RH;
-  var ANNEES=[2022,2023,2024,2025];
-var structs = (D.structures || []).filter(function(s){
-  var region = strVal(s[CFG.c.S.region] || '').trim();
-
-  if(typeRef === 'DI') return strVal(s[CFG.c.S.type]) === 'DI';
-  if(typeRef === 'SCN') return strVal(s[CFG.c.S.type]) === 'SCN';
-  if(typeRef === 'DR') return region === 'Outremer';   // ⭐ nouveau périmètre OM
-
-  if(typeRef === null) return true; // national
+  
+  html += '</tbody></table>';
+  html += renderCmt(cm,'informatique',_curId);
+  html += '</div></div>';
+  return html;
 });
 
   var vals=[];
