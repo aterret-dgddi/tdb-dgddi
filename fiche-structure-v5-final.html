@@ -2531,30 +2531,42 @@ function buildPdfHTML(s, blocs, inclAttn, inclDR){
    EXPORT HTML
 ═══════════════════════════════════════════════════════ */
 function exportHTML(){
-  if(!current){alert('Veuillez sélectionner une structure.');return;}
-  // Cloner et nettoyer les éléments interactifs (crayons, zones d'édition)
-  const clone=document.getElementById('fiche-body').cloneNode(true);
-  clone.querySelectorAll('.edit-btn,.attn-edit-btn,.edit-zone,.attn-edit-zone').forEach(el=>el.remove());
-  clone.querySelectorAll('textarea,.btn-save,.btn-cancel-edit,.save-msg').forEach(el=>el.remove());
-  const ficheHTML=clone.innerHTML;
-  const styles=[...document.styleSheets].map(ss=>{try{return[...ss.cssRules].map(r=>r.cssText).join('\n');}catch(e){return '';}}).join('\n');
-  const doc=`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Fiche — ${current[CFG.c.S.nom]}</title>
-<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Cabin:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>${styles}</style></head>
-<body style="background:#F2F5FA;"><div style="max-width:1120px;margin:20px auto;padding:0 16px 50px;">
-<div style="background:#002F6C;color:#fff;padding:12px 18px;border-radius:6px;margin-bottom:14px;">
-  <h1 style="font-size:16px;font-weight:700;font-family:'Libre Baskerville',serif;">${current[CFG.c.S.nom]} — Indicateurs de gestion</h1>
-  <p style="font-size:10.5px;opacity:.6;margin-top:4px;">Export hors-ligne — ${new Date().toLocaleDateString('fr-FR')}</p>
-</div>
-${ficheHTML}
-</div></body></html>`;
-  const blob=new Blob([doc],{type:'text/html;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download=(current[CFG.c.S.sigle]||current[CFG.c.S.nom]).replace(/[^a-zA-Z0-9-_]/g,'_')+'-fiche.html';
-  document.body.appendChild(a);a.click();
-  setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},2000);
+  // Récupérer le contenu actuel de la fiche
+  const ficheDiv = document.getElementById('fiche');
+  if(!ficheDiv) {
+    alert('Aucune fiche à exporter');
+    return;
+  }
+  
+  // Créer le HTML complet avec styles
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fiche Structure - Export</title>
+<style>
+${document.querySelector('style') ? document.querySelector('style').textContent : ''}
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; background: #f5f7fa; }
+</style>
+</head>
+<body>
+${ficheDiv.outerHTML}
+</body>
+</html>`;
+
+  // Télécharger
+  const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const structName = D.structures && _curId ? (D.structures.find(s=>s.id===_curId)||{}).Sigle || 'Structure' : 'Structure';
+  a.download = `fiche-${structName}-${new Date().toISOString().split('T')[0]}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+  console.log('[Export] HTML exporté');
 }
+
 function renderFiche(s){
   const id=s.id;
   _curId=id;
@@ -3066,19 +3078,19 @@ function renderFraisMission(data,cms){
   return`<div class="section full"><div class="sec-hdr"><span class="ico">✈️</span><h3>Frais de mission — 4 ans</h3></div><div class="sec-body">${graphHTML}${types.map(t=>renderType(t)).join('')}<div class="legend"><div class="leg-item"><div class="leg-dot" style="background:#1351A8"></div>Transport</div><div class="leg-item"><div class="leg-dot" style="background:#C05A00"></div>Hébergement</div><div class="leg-item"><div class="leg-dot" style="background:#1A6B3C"></div>Repas</div></div>${renderCmt(cm,'fraisMission',_curId)}</div></div>`;
 }
 function renderInformatique(s, cm_list){
-  console.log('[renderInformatique] Appelée pour structure:', s.id, s.Sigle);
+  
   const c=CFG.c.IT;
-  console.log('[renderInformatique] CFG.c.IT:', c);
+  
   const cm=cm_list.find(x=>x[CFG.c.CM.bloc]==='informatique');
   
   // Récupérer les données informatiques pour cette structure
   const itAll = D.informatique || [];
-  console.log('[renderInformatique] D.informatique total:', itAll.length);
+  
   const data = itAll.filter(r=>n(r[c.struct])===s.id);
-  console.log('[renderInformatique] Données filtrées pour structure', s.id, ':', data.length, 'lignes');
+  
   
   if(!data.length) {
-    console.log('[renderInformatique] Aucune donnée - retour secEmpty');
+    
     return secEmpty('💻','Informatique',cm,'full','informatique');
   }
   
@@ -3454,76 +3466,7 @@ async function savePointsAttn(cmId) {
    PANNEAU DE DIAGNOSTIC INTÉGRÉ
    Bouton 🔧 dans la toolbar — affiche état de chaque table
 ═══════════════════════════════════════════════════════ */
-function openDiag(){
-  const existing = document.getElementById('diag-panel');
-  if(existing){ existing.remove(); return; }
-
-  // Mapping clé interne → clé CFG.c
-  // Mapping clé D[] → clé CFG.c[] (doit refléter exactement la structure de CFG.c)
-  const cMap = {
-    structures: 'S',
-    contentieux: 'CT',
-    budget: 'B',
-    rh: 'RH',
-    immobilier: 'IM',
-    vehicules: 'VH',
-    fraisMission: 'FM',
-    commentaires: 'CM',
-  };
-
-  let lines = '<h3 style="margin-bottom:12px;color:#002F6C;font-size:14px">🔧 Diagnostic des données Grist</h3>';
-  lines += '<p style="font-size:11px;color:#4A5A6A;margin-bottom:14px">Vérifiez que chaque table est chargée et que les colonnes correspondent aux noms attendus dans CFG.c.</p>';
-
-  for(const [key, tableName] of Object.entries(CFG.tables)){
-    const data = D[key]||[];
-    const ok = data.length > 0;
-    const icon = ok ? '✅' : '❌';
-
-    // Colonnes attendues vs réelles
-    const cKey = cMap[key];
-    const expectedCols = cKey ? Object.values(CFG.c[cKey]||{}) : [];
-    let colWarn = '';
-    if(ok && expectedCols.length){
-      const actualCols = Object.keys(data[0]);
-      const missing = expectedCols.filter(c=>c!=='id'&&!actualCols.includes(c));
-      if(missing.length){
-        colWarn = '<div style="color:#C05A00;font-size:10.5px;padding:4px 12px;background:#FFF8F0">⚠️ Colonnes attendues manquantes : '+missing.join(', ')+'</div>';
-      }
-    }
-
-    const sample = ok
-      ? 'Colonnes : '+Object.keys(data[0]).join(', ')
-      : 'Aucune donnée — vérifiez le nom dans CFG.tables';
-
-    lines += '<div style="margin-bottom:9px;border:1px solid #CDD6E4;border-radius:6px;overflow:hidden;">'
-      +'<div style="padding:7px 12px;background:'+(ok?'#EFF7F0':'#FFF0F0')+';display:flex;align-items:center;gap:8px;">'
-      +'<span>'+icon+'</span><strong style="font-size:12.5px">'+tableName+'</strong>'
-      +'<span style="font-size:11px;color:#4A5A6A;margin-left:auto">'+data.length+' ligne(s)</span>'
-      +'</div>'+colWarn
-      +'<div style="padding:6px 12px;font-size:10.5px;color:#8A9BAA;font-family:monospace;word-break:break-all;background:#fafafa;">'
-      +sample+'</div></div>';
-  }
-
-  lines += '<div style="margin-top:12px;padding:10px 14px;background:#E6ECF8;border-radius:6px;font-size:11px;color:#002F6C;">'
-    +'<strong>Si une table est vide ou ❌ :</strong><br>'
-    +'① Vérifiez le nom exact dans Grist (sensible à la casse)<br>'
-    +'② Mettez à jour <code>CFG.tables</code> dans le fichier HTML<br>'
-    +'&#9314; Niveau d\'acces du widget = <strong>Acces complet au document</strong><br>'
-    +'④ Colonne "Structure" = type <em>Reference → Structures</em> dans Grist'
-    +'</div>';
-
-  const panel = document.createElement('div');
-  panel.id = 'diag-panel';
-  panel.style.cssText = 'position:fixed;top:52px;right:16px;z-index:9000;width:600px;max-width:95vw;max-height:80vh;background:#fff;border:2px solid #002F6C;border-radius:10px;box-shadow:0 8px 32px rgba(0,20,70,.25);overflow-y:auto;padding:18px 20px;';
-  panel.innerHTML = lines;
-
-  const closeBtn = document.createElement('button');
-  closeBtn.textContent = '✕ Fermer';
-  closeBtn.style.cssText = 'position:absolute;top:12px;right:14px;background:#EEF2F7;border:1px solid #CDD6E4;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11.5px;';
-  closeBtn.onclick = ()=>panel.remove();
-  panel.appendChild(closeBtn);
-  document.body.appendChild(panel);
-}
+function openDiag(){ return ''; }
 
 window.addEventListener('load',initGrist);
 </script>
