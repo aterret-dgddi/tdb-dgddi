@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tableau de bord budgétaire — DGDDI</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<!-- jsPDF + html2canvas pour export PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* Police Marianne (officielle de l'État français) */
+@import url('https://fonts.googleapis.com/css2?family=Marianne:wght@400;500;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap');
+
+:root {
+  --rep:#002F6C; --rep2:#1351A8; --rep-pale:#E6ECF8;
+  --rouge:#B52020; --vert:#1A6B3C; --orange:#C05A00; --jaune:#8A6800;
+  --gris1:#1E2D3D; --gris2:#4A5A6A; --gris3:#8A9BAA; --gris4:#EEF2F7;
+  --blanc:#FFFFFF; --bord:#CDD6E4;
+  --shadow:0 2px 8px rgba(0,30,80,.10);
+  --shadow-lg:0 8px 32px rgba(0,20,70,.22);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html { font-size:13px; }
+body { 
+  font-family:'Marianne', -apple-system, BlinkMacSystemFont, sans-serif;
+  background:#F2F5FA; 
+  color:var(--gris1); 
+  line-height:1.5;
+}
+
+/* ══════════════════════════════════
+   TOOLBAR
+══════════════════════════════════ */
+#toolbar {
+  position:sticky; top:0; z-index:300;
+  background:var(--rep); padding:9px 18px;
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  box-shadow:0 2px 14px rgba(0,20,70,.45);
+}
+#toolbar h1 {
+  font-family:'Libre Baskerville', serif;
+  font-size:14px; font-weight:700; color:#fff;
+  letter-spacing:.2px; flex:1; min-width:200px;
+}
+.tbtn {
+  display:flex; align-items:center; gap:5px;
+  background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.3);
+  color:#fff; padding:6px 13px; border-radius:5px;
+  font-family:'Marianne', sans-serif; font-size:11.5px; font-weight:600;
+  cursor:pointer; transition:all .18s; white-space:nowrap;
+}
+.tbtn:hover { background:rgba(255,255,255,.25); }
+.tbtn.primary { background:#0057B8; border-color:#0044A0; }
+.tbtn.primary:hover { background:#0046A0; }
+.tbtn:disabled { opacity:.45; cursor:not-allowed; }
+
+/* ══════════════════════════════════
+   BARRE SÉLECTEUR + FILTRES
+══════════════════════════════════ */
+#selbar {
+  background:#fff; border-bottom:3px solid var(--rep);
+  padding:10px 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  position:sticky; top:48px; z-index:200;
+  box-shadow:0 2px 6px rgba(0,20,70,.07);
+}
+#selbar label {
+  font-weight:700; color:var(--rep); font-size:12px; white-space:nowrap;
+}
+
+/* Sélecteur d'unités */
+#unit-selector {
+  display:flex; gap:4px; padding:4px; background:var(--gris4);
+  border-radius:6px; border:1px solid var(--bord);
+  margin-left:auto;
+}
+.unit-btn {
+  padding:4px 12px; border:none; background:transparent;
+  border-radius:4px; font-size:11px; font-weight:600;
+  color:var(--gris2); cursor:pointer; transition:all .15s;
+  font-family:'Marianne', sans-serif;
+}
+.unit-btn.active {
+  background:#fff; color:var(--rep); box-shadow:0 1px 3px rgba(0,20,70,.1);
+}
+.unit-btn:hover:not(.active) {
+  background:rgba(255,255,255,.5);
+}
+
+/* ══════════════════════════════════
+   CONTENU PRINCIPAL
+══════════════════════════════════ */
+#content {
+  max-width:1200px; margin:18px auto; padding:0 16px 50px;
+}
+
+/* ══════════════════════════════════
+   KPI — INDICATEURS CLÉS
+══════════════════════════════════ */
+.kpi-section {
+  margin-bottom:20px;
+}
+.kpi-title {
+  font-size:11px; font-weight:700; color:var(--gris2);
+  letter-spacing:.8px; text-transform:uppercase;
+  margin-bottom:12px; padding-bottom:6px;
+  border-bottom:2px solid var(--rep-pale);
+}
+.kpi-grid {
+  display:grid;
+  grid-template-columns:repeat(2, 1fr);
+  gap:16px;
+}
+
+.kpi-card {
+  background:#fff; border:1px solid var(--bord); border-radius:8px;
+  padding:16px 20px; border-top:4px solid var(--rep2);
+  box-shadow:var(--shadow);
+  transition:transform .2s, box-shadow .2s;
+}
+.kpi-card:hover {
+  transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(0,30,80,.15);
+}
+.kpi-card.ae { border-top-color:#2196F3; }
+.kpi-card.cp { border-top-color:#FF9800; }
+
+.kpi-label {
+  font-size:11px; font-weight:700; color:var(--gris2);
+  letter-spacing:.6px; text-transform:uppercase;
+  margin-bottom:8px;
+}
+.kpi-value {
+  font-size:32px; font-weight:800; color:var(--rep);
+  line-height:1; margin-bottom:12px;
+  font-family:'Marianne', sans-serif;
+}
+.kpi-value.ae { color:#2196F3; }
+.kpi-value.cp { color:#FF9800; }
+
+.kpi-details {
+  display:flex; gap:16px; flex-wrap:wrap;
+}
+.kpi-detail {
+  flex:1; min-width:120px;
+}
+.kpi-detail-label {
+  font-size:10px; color:var(--gris3);
+  margin-bottom:3px;
+}
+.kpi-detail-value {
+  font-size:14px; font-weight:700; color:var(--gris1);
+}
+.kpi-detail-value.placeholder {
+  color:var(--gris3); font-style:italic;
+}
+
+/* ══════════════════════════════════
+   TABLEAU
+══════════════════════════════════ */
+.table-wrap {
+  background:#fff; border:1px solid var(--bord); border-radius:8px;
+  overflow:hidden; margin-bottom:18px;
+  box-shadow:var(--shadow);
+}
+.table-header {
+  background:var(--rep); color:#fff;
+  padding:10px 16px; font-size:12.5px; font-weight:700;
+  display:flex; align-items:center; gap:8px;
+}
+.table-subtitle {
+  font-size:10px; font-weight:400; opacity:.85;
+  margin-left:auto;
+}
+.table-scroll {
+  overflow-x:auto;
+}
+
+.budget-table {
+  width:100%; border-collapse:collapse; font-size:12px;
+}
+.budget-table th {
+  background:var(--rep-pale); color:var(--rep);
+  padding:10px 12px; text-align:left; font-weight:700; font-size:11px;
+  border-bottom:2px solid var(--bord); white-space:nowrap;
+  position:sticky; top:0; z-index:10;
+}
+.budget-table th.number {
+  text-align:right; width:150px;
+}
+.budget-table td {
+  padding:9px 12px; border-bottom:1px solid var(--bord);
+  vertical-align:middle;
+}
+.budget-table td.number {
+  text-align:right;
+  font-family:'Marianne', sans-serif;
+  font-weight:500;
+  font-variant-numeric:tabular-nums;
+}
+
+/* Niveaux d'arborescence */
+.level-brique {
+  font-weight:700;
+  background:var(--rep-pale);
+  color:var(--rep);
+  cursor:pointer;
+}
+.level-brique td:first-child {
+  padding-left:16px;
+}
+.level-brique td:first-child::before {
+  content:"▶ ";
+  margin-right:8px;
+}
+.level-brique.open td:first-child::before {
+  content:"▼ ";
+}
+
+.level-sous-brique {
+  font-weight:600;
+  background:#f8f9fa;
+  cursor:pointer;
+}
+.level-sous-brique td:first-child {
+  padding-left:32px;
+}
+.level-sous-brique td:first-child::before {
+  content:"▶ ";
+  margin-right:8px;
+}
+.level-sous-brique.open td:first-child::before {
+  content:"▼ ";
+}
+
+.level-activite {
+  color:var(--gris2);
+}
+.level-activite td:first-child {
+  padding-left:48px;
+}
+
+/* Lignes cachées */
+.hidden {
+  display:none;
+}
+
+/* Ligne cliquable */
+.clickable {
+  cursor:pointer;
+  transition:background 0.15s;
+}
+.clickable:hover {
+  background:#e0e8f5 !important;
+}
+
+/* Ligne TOTAL */
+.row-total {
+  background:var(--rep);
+  color:#fff;
+  font-weight:700;
+  font-size:13px;
+}
+.row-total td {
+  border-top:2px solid var(--rep);
+  border-bottom:none;
+}
+
+/* Valeurs colorées */
+.value-ae { color:#2196F3; font-weight:600; }
+.value-cp { color:#FF9800; font-weight:600; }
+
+/* ══════════════════════════════════
+   BANDEAU DE STATUT
+══════════════════════════════════ */
+#status-bar {
+  background:var(--gris4);
+  padding:8px 16px;
+  font-size:11px;
+  color:var(--gris2);
+  text-align:center;
+  border-bottom:1px solid var(--bord);
+}
+#status-bar.loading {
+  background:#fff9e6;
+  color:var(--orange);
+}
+#status-bar.error {
+  background:#ffebee;
+  color:var(--rouge);
+}
+#status-bar.success {
+  background:#e8f5e9;
+  color:var(--vert);
+}
+
+/* ══════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════ */
+@media (max-width: 768px) {
+  #toolbar { flex-direction:column; align-items:stretch; }
+  #toolbar h1 { text-align:center; }
+  #selbar { flex-direction:column; align-items:stretch; }
+  #selector-wrap { max-width:100%; }
+  .kpi-grid { grid-template-columns:1fr; }
+  .budget-table { font-size:11px; }
+  .budget-table th, .budget-table td { padding:7px 8px; }
+}
+
+/* ══════════════════════════════════
+   IMPRESSION
+══════════════════════════════════ */
+@media print {
+  #toolbar, #selbar, #status-bar { display:none !important; }
+  body { background:#fff; }
+  #content { margin:0; padding:8px; max-width:100%; }
+  .kpi-grid { grid-template-columns:repeat(2, 1fr); }
+  @page { margin:10mm; size:A4 landscape; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <h1>📊 Tableau de bord budgétaire</h1>
+  <button class="tbtn" onclick="exportPDF()">📄 Export PDF</button>
+  <button class="tbtn" onclick="exportHTML()">🌐 Export HTML</button>
+  <button class="tbtn" onclick="window.print()">🖨️ Imprimer</button>
+</div>
+
+<!-- BARRE SÉLECTEUR + FILTRES -->
+<div id="selbar">
+  <label>Unité :</label>
+  <div id="unit-selector">
+    <button class="unit-btn active" data-unit="euro">€</button>
+    <button class="unit-btn" data-unit="k">K€</button>
+    <button class="unit-btn" data-unit="m">M€</button>
+  </div>
+</div>
+
+<!-- BANDEAU DE STATUT -->
+<div id="status-bar">Connexion à Grist...</div>
+
+<!-- CONTENU PRINCIPAL -->
+<div id="content">
+  
+  <!-- SECTION KPI -->
+  <div class="kpi-section">
+    <div class="kpi-title">Indicateurs clés</div>
+    <div class="kpi-grid" id="kpiGrid">
+      <!-- Les KPI seront générés ici -->
+    </div>
+  </div>
+  
+  <!-- TABLEAU PAR BRIQUE -->
+  <div class="table-wrap">
+    <div class="table-header">
+      <span>Consommation par brique budgétaire</span>
+      <span class="table-subtitle" id="tableSubtitle">6 briques : notification, mise à disposition, consommation</span>
+    </div>
+    <div class="table-scroll">
+      <table class="budget-table" id="budgetTable">
+        <thead>
+          <tr>
+            <th>Brique / Sous-brique / Activité</th>
+            <th class="number">AE</th>
+            <th class="number">CP</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <!-- Les lignes seront générées ici -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   CONFIGURATION
+═══════════════════════════════════════════════════════ */
+
+const CFG = {
+  table: 'INFBUD40',
+  structuresTable: 'Structures',
+  debug: true
+};
+
+/* ═══════════════════════════════════════════════════════
+   ÉTAT GLOBAL
+═══════════════════════════════════════════════════════ */
+
+const STATE = {
+  data: [],
+  structures: [],
+  currentStructure: null,
+  currentUnit: 'euro',
+  ready: false
+};
+
+/* ═══════════════════════════════════════════════════════
+   GRIST — INITIALISATION (Logique d'origine)
+═══════════════════════════════════════════════════════ */
+
+function initGrist() {
+  if (typeof grist === 'undefined') {
+    setStatus('Mode démonstration (hors Grist)', 'info');
+    loadDemoData();
+    return;
+  }
+
+  try {
+    grist.ready({ requiredAccess: 'read table' });
+    setStatus('Connexion à Grist...', 'loading');
+    
+    grist.onRecords(function(records) {
+      if (CFG.debug) console.log('[Grist] onRecords:', records?.length || 0, 'lignes');
+      
+      if (!records || records.length === 0) {
+        setStatus('Aucune donnée dans INFBUD40', 'error');
+        return;
+      }
+      
+      setStatus(`${records.length} lignes chargées depuis INFBUD40`, 'success');
+      
+      // Traiter et afficher les données
+      processAndRenderData(records);
+    });
+    
+  } catch(err) {
+    console.error('[Grist] Erreur initialisation:', err);
+    setStatus('Erreur de connexion à Grist: ' + err.message, 'error');
+    loadDemoData();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   TRAITEMENT ET RENDU DES DONNÉES (Logique d'origine)
+═══════════════════════════════════════════════════════ */
+
+function processAndRenderData(records) {
+  const agg = {};
+  
+  let totalAE = 0;
+  let totalCP = 0;
+  
+  // Agréger les données par brique > sous-brique > activité
+  records.forEach(r => {
+    const brique = r.brique || "Non défini";
+    const sous = r.sous_brique || "Non défini";
+    const act = r.activite || "Non défini";
+    
+    const AE = Number(r.AE) || 0;
+    const CP = Number(r.CP) || 0;
+    
+    // Initialiser la hiérarchie
+    if (!agg[brique]) agg[brique] = {};
+    if (!agg[brique][sous]) agg[brique][sous] = {};
+    if (!agg[brique][sous][act]) {
+      agg[brique][sous][act] = { AE: 0, CP: 0 };
+    }
+    
+    // Accumuler
+    agg[brique][sous][act].AE += AE;
+    agg[brique][sous][act].CP += CP;
+    
+    totalAE += AE;
+    totalCP += CP;
+  });
+  
+  // Rendre les KPI
+  renderKPI(totalAE, totalCP, records.length);
+  
+  // Rendre le tableau
+  renderTableFromAgg(agg, totalAE, totalCP);
+}
+
+function renderKPI(totalAE, totalCP, count) {
+  const kpiHTML = `
+    <div class="kpi-card ae">
+      <div class="kpi-label">Consommation AE</div>
+      <div class="kpi-value ae">${formatValue(totalAE)}</div>
+      <div class="kpi-details">
+        <div class="kpi-detail">
+          <div class="kpi-detail-label">% par rapport à la LFI</div>
+          <div class="kpi-detail-value placeholder">À venir</div>
+        </div>
+        <div class="kpi-detail">
+          <div class="kpi-detail-label">% par rapport à 2025</div>
+          <div class="kpi-detail-value placeholder">À venir</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="kpi-card cp">
+      <div class="kpi-label">Consommation CP</div>
+      <div class="kpi-value cp">${formatValue(totalCP)}</div>
+      <div class="kpi-details">
+        <div class="kpi-detail">
+          <div class="kpi-detail-label">% par rapport à la LFI</div>
+          <div class="kpi-detail-value placeholder">À venir</div>
+        </div>
+        <div class="kpi-detail">
+          <div class="kpi-detail-label">% par rapport à 2025</div>
+          <div class="kpi-detail-value placeholder">À venir</div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('kpiGrid').innerHTML = kpiHTML;
+}
+
+function renderTableFromAgg(agg, totalAE, totalCP) {
+  let html = '';
+  
+  // Parcourir les briques
+  Object.entries(agg).forEach(([brique, souss], i) => {
+    // Calculer les totaux de la brique
+    let bAE = 0, bCP = 0;
+    Object.values(souss).forEach(acts => {
+      Object.values(acts).forEach(v => {
+        bAE += v.AE;
+        bCP += v.CP;
+      });
+    });
+    
+    // Ligne BRIQUE (cliquable)
+    html += `<tr class="level-brique clickable" data-brique="${i}">
+      <td>${brique}</td>
+      <td class="number value-ae">${formatValue(bAE)}</td>
+      <td class="number value-cp">${formatValue(bCP)}</td>
+    </tr>`;
+    
+    // Parcourir les sous-briques
+    Object.entries(souss).forEach(([sous, acts], j) => {
+      // Calculer les totaux de la sous-brique
+      let sAE = 0, sCP = 0;
+      Object.values(acts).forEach(v => {
+        sAE += v.AE;
+        sCP += v.CP;
+      });
+      
+      // Ligne SOUS-BRIQUE (cachée par défaut, cliquable)
+      html += `<tr class="level-sous-brique hidden clickable" data-parent="${i}" data-sous="${i}-${j}">
+        <td>${sous}</td>
+        <td class="number value-ae">${formatValue(sAE)}</td>
+        <td class="number value-cp">${formatValue(sCP)}</td>
+      </tr>`;
+      
+      // Parcourir les activités
+      Object.entries(acts).forEach(([act, v]) => {
+        // Ligne ACTIVITÉ (cachée par défaut)
+        html += `<tr class="level-activite hidden" data-parent="${i}-${j}">
+          <td>${act}</td>
+          <td class="number">${formatValue(v.AE)}</td>
+          <td class="number">${formatValue(v.CP)}</td>
+        </tr>`;
+      });
+    });
+  });
+  
+  // Ligne TOTAL
+  html += `
+    <tr class="row-total">
+      <td>TOTAL</td>
+      <td class="number">${formatValue(totalAE)}</td>
+      <td class="number">${formatValue(totalCP)}</td>
+    </tr>
+  `;
+  
+  document.getElementById('tableBody').innerHTML = html;
+  
+  // Activer l'accordéon
+  setupAccordion();
+}
+
+function setupAccordion() {
+  // Accordéon niveau 1 (briques)
+  document.querySelectorAll('.level-brique.clickable').forEach(row => {
+    row.onclick = () => {
+      const id = row.dataset.brique;
+      const open = row.classList.toggle('open');
+      
+      // Afficher/masquer les sous-briques
+      document.querySelectorAll(`.level-sous-brique[data-parent='${id}']`)
+        .forEach(el => el.classList.toggle('hidden', !open));
+      
+      // Masquer toutes les activités de cette brique si on ferme
+      if (!open) {
+        document.querySelectorAll(`.level-activite[data-parent^='${id}-']`)
+          .forEach(el => {
+            el.classList.add('hidden');
+            // Retirer l'état open des sous-briques
+            const sousBrique = document.querySelector(`.level-sous-brique[data-sous='${el.dataset.parent}']`);
+            if (sousBrique) sousBrique.classList.remove('open');
+          });
+      }
+    };
+  });
+  
+  // Accordéon niveau 2 (sous-briques)
+  document.querySelectorAll('.level-sous-brique.clickable').forEach(row => {
+    row.onclick = (e) => {
+      e.stopPropagation();
+      const id = row.dataset.sous;
+      const open = row.classList.toggle('open');
+      
+      // Afficher/masquer les activités
+      document.querySelectorAll(`.level-activite[data-parent='${id}']`)
+        .forEach(el => el.classList.toggle('hidden', !open));
+    };
+  });
+}
+
+/* ═══════════════════════════════════════════════════════
+   SÉLECTEUR D'UNITÉS
+═══════════════════════════════════════════════════════ */
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Gestionnaire sélecteur d'unités
+  document.querySelectorAll('.unit-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.unit-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      STATE.currentUnit = this.dataset.unit;
+      
+      // Re-render si des données sont déjà chargées
+      const tableBody = document.getElementById('tableBody');
+      if (tableBody && tableBody.innerHTML.trim() !== '') {
+        // Relancer le rendu avec la nouvelle unité
+        // (les données sont déjà agrégées, on re-render juste le HTML)
+        location.reload(); // Simple reload pour l'instant
+      }
+    });
+  });
+  
+  // Initialiser Grist
+  initGrist();
+});
+
+/* ═══════════════════════════════════════════════════════
+   EXPORT
+═══════════════════════════════════════════════════════ */
+
+function exportPDF() {
+  setStatus('Génération du PDF...', 'loading');
+  
+  // TODO: Implémenter l'export PDF avec jsPDF
+  setTimeout(() => {
+    alert('Export PDF - Fonctionnalité à implémenter');
+    setStatus('Prêt', 'success');
+  }, 500);
+}
+
+function exportHTML() {
+  const clone = document.cloneElement('content').cloneNode(true);
+  
+  const fullHTML = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Export Tableau de bord budgétaire - ${STATE.currentStructure ? STATE.currentStructure.nom : 'DGDDI'}</title>
+<style>
+${document.querySelector('style').textContent}
+</style>
+</head>
+<body>
+<div style="padding:20px;">
+<h1 style="font-family:'Libre Baskerville',serif;color:var(--rep);margin-bottom:20px;">
+  Tableau de bord budgétaire - ${STATE.currentStructure ? STATE.currentStructure.nom : 'DGDDI'}
+</h1>
+${document.getElementById('content').innerHTML}
+</div>
+</body>
+</html>`;
+  
+  const blob = new Blob([fullHTML], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `tableau-bord-budget-${new Date().toISOString().split('T')[0]}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  setStatus('Export HTML téléchargé', 'success');
+}
+
+/* ═══════════════════════════════════════════════════════
+   UTILITAIRES
+═══════════════════════════════════════════════════════ */
+
+function setStatus(message, type = 'info') {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = message;
+  bar.className = type;
+  
+  if (CFG.debug) console.log('[Statut]', message);
+}
+
+function formatValue(num) {
+  if (num == null || isNaN(num)) return '0';
+  
+  const unit = STATE.currentUnit;
+  let value = num;
+  let suffix = ' €';
+  
+  if (unit === 'k') {
+    value = num / 1000;
+    suffix = ' K€';
+  } else if (unit === 'm') {
+    value = num / 1000000;
+    suffix = ' M€';
+  }
+  
+  return new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: unit === 'euro' ? 0 : 2,
+    maximumFractionDigits: unit === 'euro' ? 0 : 2
+  }).format(value) + suffix;
+}
+
+function loadDemoData() {
+  // Données de démonstration avec structure hiérarchique
+  const demoRecords = [
+    {
+      brique: 'Fonction Support',
+      sous_brique: 'Ressources Humaines',
+      activite: '000302010101',
+      AE: 1500000,
+      CP: 1200000,
+      libact: 'Personnel titulaire'
+    },
+    {
+      brique: 'Fonction Support',
+      sous_brique: 'Ressources Humaines',
+      activite: '000302010102',
+      AE: 750000,
+      CP: 600000,
+      libact: 'Personnel contractuel'
+    },
+    {
+      brique: 'Fonction Support',
+      sous_brique: 'Informatique',
+      activite: '000302010201',
+      AE: 350000,
+      CP: 280000,
+      libact: 'Maintenance informatique'
+    },
+    {
+      brique: 'Opérations douanières',
+      sous_brique: 'Surveillance',
+      activite: '000302020101',
+      AE: 2500000,
+      CP: 2000000,
+      libact: 'Contrôles aux frontières'
+    },
+    {
+      brique: 'Opérations douanières',
+      sous_brique: 'Surveillance',
+      activite: '000302020102',
+      AE: 1800000,
+      CP: 1500000,
+      libact: 'Équipements de détection'
+    },
+    {
+      brique: 'Opérations douanières',
+      sous_brique: 'Contentieux',
+      activite: '000302020201',
+      AE: 950000,
+      CP: 850000,
+      libact: 'Enquêtes et contentieux'
+    }
+  ];
+  
+  setStatus('Mode démonstration - ' + demoRecords.length + ' lignes', 'success');
+  processAndRenderData(demoRecords);
+}
+
+/* ═══════════════════════════════════════════════════════
+   INITIALISATION
+═══════════════════════════════════════════════════════ */
+
+// L'initialisation se fait dans le DOMContentLoaded ci-dessus
+
+</script>
+
+</body>
+</html>
