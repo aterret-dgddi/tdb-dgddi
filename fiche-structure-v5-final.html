@@ -837,18 +837,11 @@ function nPct(v){ if(v==null) return 0; var s=String(v).replace(',','.').replace
 
 /* Grist peut renvoyer les Choice comme ["L","valeur"] — on extrait la chaîne */
 function strVal(v){ if(Array.isArray(v)) return v[1]||''; return v==null?'':String(v); }
-function fmt(v){ return v!=null?Number(v).toLocaleString('fr-FR'):'—'; }
-function fmtD(v){ return v!=null?Number(v).toLocaleString('fr-FR',{maximumFractionDigits:1}):'—'; }
-
-/* ═══════════════════════════════════════════════════════
-   UTIL — Normalisation tableau
-════════════════════════════════════════════════════════ */
-
-function fArr(v){
-  if (!v) return [];
-  if (Array.isArray(v)) return v;
-  return [v];
+function fmt(x){
+  if(x==null||isNaN(x)) return '0';
+  return Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ');
 }
+
 
 const LOGO_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Logo_des_Douanes_Fran%C3%A7aises.svg/250px-Logo_des_Douanes_Fran%C3%A7aises.svg.png';
 /* ═══════════════════════════════════════════════════════
@@ -2969,9 +2962,9 @@ function renderFraisMission(data,cms){
     });
     
     // Légende
-    graphHTML += '<rect x="10" y="10" width="10" height="10" fill="#1351A8"/><text x="23" y="19" font-size="9" fill="#2C3E50">Transport</text>';
-    graphHTML += '<rect x="80" y="10" width="10" height="10" fill="#C05A00"/><text x="93" y="19" font-size="9" fill="#2C3E50">Héberg.</text>';
-    graphHTML += '<rect x="145" y="10" width="10" height="10" fill="#1A6B3C"/><text x="158" y="19" font-size="9" fill="#2C3E50">Repas</text>';
+    graphHTML += '<rect x="10" y="165" width="10" height="10" fill="#1351A8"/><text x="23" y="174" font-size="9" fill="#2C3E50">Transport</text>';
+    graphHTML += '<rect x="80" y="165" width="10" height="10" fill="#C05A00"/><text x="93" y="174" font-size="9" fill="#2C3E50">Héberg.</text>';
+    graphHTML += '<rect x="145" y="165" width="10" height="10" fill="#1A6B3C"/><text x="158" y="174" font-size="9" fill="#2C3E50">Repas</text>';
     
     graphHTML += '</svg></div>';
     
@@ -3005,8 +2998,8 @@ function renderFraisMission(data,cms){
     });
     
     // Légende
-    graphHTML += '<rect x="10" y="10" width="10" height="10" fill="#28A745"/><text x="23" y="19" font-size="9" fill="#2C3E50">Formation</text>';
-    graphHTML += '<rect x="85" y="10" width="10" height="10" fill="#FF8C00"/><text x="98" y="19" font-size="9" fill="#2C3E50">Autres</text>';
+    graphHTML += '<rect x="10" y="165" width="10" height="10" fill="#28A745"/><text x="23" y="174" font-size="9" fill="#2C3E50">Formation</text>';
+    graphHTML += '<rect x="85" y="165" width="10" height="10" fill="#FF8C00"/><text x="98" y="174" font-size="9" fill="#2C3E50">Autres</text>';
     
     graphHTML += '</svg></div>';
     
@@ -3133,8 +3126,10 @@ function renderInformatique(s, cm_list){
       return d.etpt > 0 ? Math.round(pc / d.etpt * 100) : 0;
     });
     const max = Math.max(...vals, 1);
-    const pts = vals.map((v,i)=>`${i*20},${30-(v/max*25)}`).join(' ');
-    return `<svg width="60" height="30" style="margin-left:8px;"><polyline points="${pts}" fill="none" stroke="#0066CC" stroke-width="1.5"/></svg>`;
+    const pts = vals.map((v,i)=>`${i*20+5},${28-(v/max*20)}`).join(' ');
+    const anMin = Math.min(...annees);
+    const anMax = Math.max(...annees);
+    return `<svg width="70" height="36" style="margin-left:8px;"><polyline points="${pts}" fill="none" stroke="#0066CC" stroke-width="1.5"/><text x="2" y="36" font-size="7" fill="#999">${anMin}</text><text x="48" y="36" font-size="7" fill="#999">${anMax}</text></svg>`;
   })() : '';
   
   const miniGraphCout = annees.length > 1 ? (() => {
@@ -3143,8 +3138,10 @@ function renderInformatique(s, cm_list){
       return d.etpt > 0 ? Math.round(d.depenses / d.etpt) : 0;
     });
     const max = Math.max(...vals, 1);
-    const pts = vals.map((v,i)=>`${i*20},${30-(v/max*25)}`).join(' ');
-    return `<svg width="60" height="30" style="margin-left:8px;"><polyline points="${pts}" fill="none" stroke="#28A745" stroke-width="1.5"/></svg>`;
+    const pts = vals.map((v,i)=>`${i*20+5},${28-(v/max*20)}`).join(' ');
+    const anMin = Math.min(...annees);
+    const anMax = Math.max(...annees);
+    return `<svg width="70" height="36" style="margin-left:8px;"><polyline points="${pts}" fill="none" stroke="#28A745" stroke-width="1.5"/><text x="2" y="36" font-size="7" fill="#999">${anMin}</text><text x="48" y="36" font-size="7" fill="#999">${anMax}</text></svg>`;
   })() : '';
   
   let html = `<div class="section full"><div class="sec-hdr"><span class="ico">💻</span><h3>Informatique — Année ${anneeCourante}</h3></div><div class="sec-body">`;
