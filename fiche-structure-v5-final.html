@@ -846,6 +846,9 @@ function fArr(v){
   if (Array.isArray(v)) return v;
   return [v];
 }
+function fmtD(v){ return v!=null?Number(v).toLocaleString('fr-FR',{maximumFractionDigits:1}):'—'; }
+function fmtPct(v){ return v!=null?(Math.round(v*10)/10).toFixed(1)+'%':'—'; }
+
 
 
 
