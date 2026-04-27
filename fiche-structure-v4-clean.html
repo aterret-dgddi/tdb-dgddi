@@ -3090,14 +3090,21 @@ function renderFraisMission(data,cms){
   return`<div class="section full"><div class="sec-hdr"><span class="ico">✈️</span><h3>Frais de mission — 4 ans</h3></div><div class="sec-body">${graphHTML}${types.map(t=>renderType(t)).join('')}<div class="legend"><div class="leg-item"><div class="leg-dot" style="background:#1351A8"></div>Transport</div><div class="leg-item"><div class="leg-dot" style="background:#C05A00"></div>Hébergement</div><div class="leg-item"><div class="leg-dot" style="background:#1A6B3C"></div>Repas</div></div>${renderCmt(cm,'fraisMission',_curId)}</div></div>`;
 }
 function renderInformatique(s, cm_list){
+  console.log('[renderInformatique] Appelée pour structure:', s.id, s.Sigle);
   const c=CFG.c.IT;
+  console.log('[renderInformatique] CFG.c.IT:', c);
   const cm=cm_list.find(x=>x[CFG.c.CM.bloc]==='informatique');
   
   // Récupérer les données informatiques pour cette structure
   const itAll = D.informatique || [];
+  console.log('[renderInformatique] D.informatique total:', itAll.length);
   const data = itAll.filter(r=>n(r[c.struct])===s.id);
+  console.log('[renderInformatique] Données filtrées pour structure', s.id, ':', data.length, 'lignes');
   
-  if(!data.length) return secEmpty('💻','Informatique',cm,'full','informatique');
+  if(!data.length) {
+    console.log('[renderInformatique] Aucune donnée - retour secEmpty');
+    return secEmpty('💻','Informatique',cm,'full','informatique');
+  }
   
   // Préparer données par année
   const dataParAnnee = {};
