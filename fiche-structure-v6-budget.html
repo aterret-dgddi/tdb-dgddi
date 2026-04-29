@@ -2625,11 +2625,11 @@ function renderFiche(s){
     +'<div class="grid">'
     +ctBlock
     +renderRH(rh,cm,drs,s)
+    +renderBudget(s,cm)
         +renderVehicules(vh,cm,drs,s)
     +renderImmobilier(im,cm,s)
     +renderFraisMission(fm,cm)
     +renderInformatique(s,cm)
-    +renderBudget(s,cm)
     +'</div>';
 }
 function renderHeader(s){
@@ -3100,6 +3100,13 @@ function renderBudget(s, cm_list){
   // Filtrer pour cette structure
   const infBudStruct = infBudData.filter(r=>r[cInf.struct]===s.id);
   
+  console.log('[Budget] Structure:', s.id, s.Sigle);
+  console.log('[Budget] infBud40 total:', infBudData.length);
+  console.log('[Budget] Filtré pour structure:', infBudStruct.length);
+  if(infBudStruct.length > 0) {
+    console.log('[Budget] Exemple ligne:', infBudStruct[0]);
+  }
+  
   if(!infBudStruct.length) {
     return secEmpty('💰','Budget',cm,'full','budget');
   }
@@ -3115,7 +3122,13 @@ function renderBudget(s, cm_list){
     return act === activiteCode && cb === 51;
   });
   
+  console.log('[Budget] Activité 030200100203 + CB=51:', lignesActivite.length);
+  if(lignesActivite.length > 0) {
+    console.log('[Budget] Exemple activité:', lignesActivite[0]);
+  }
+  
   if(!lignesActivite.length) {
+    console.log('[Budget] Aucune ligne activité - retour secEmpty');
     return secEmpty('💰','Budget - Véhicules',cm,'full','budget');
   }
   
