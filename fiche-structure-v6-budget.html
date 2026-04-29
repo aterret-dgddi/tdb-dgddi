@@ -2625,8 +2625,7 @@ function renderFiche(s){
     +'<div class="grid">'
     +ctBlock
     +renderRH(rh,cm,drs,s)
-    +renderBudget(bu,cm)
-    +renderVehicules(vh,cm,drs,s)
+        +renderVehicules(vh,cm,drs,s)
     +renderImmobilier(im,cm,s)
     +renderFraisMission(fm,cm)
     +renderInformatique(s,cm)
@@ -3229,19 +3228,19 @@ function renderBudget(s, cm_list){
 }
 
 function renderInformatique(s, cm_list){
-  console.log('[renderInformatique] Appelée pour structure:', s.id, s.Sigle);
+  
   const c=CFG.c.IT;
-  console.log('[renderInformatique] CFG.c.IT:', c);
+  
   const cm=cm_list.find(x=>x[CFG.c.CM.bloc]==='informatique');
   
   // Récupérer les données informatiques pour cette structure
   const itAll = D.informatique || [];
-  console.log('[renderInformatique] D.informatique total:', itAll.length);
+  
   const data = itAll.filter(r=>n(r[c.struct])===s.id);
-  console.log('[renderInformatique] Données filtrées pour structure', s.id, ':', data.length, 'lignes');
+  
   
   if(!data.length) {
-    console.log('[renderInformatique] Aucune donnée - retour secEmpty');
+    
     return secEmpty('💻','Informatique',cm,'full','informatique');
   }
   
