@@ -857,7 +857,7 @@ const LOGO_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Logo
    CONFIG
 ═══════════════════════════════════════════════════════ */
 const CFG={
-  tables:{structures:'Structures',data:'DATA'},
+  tables:{structures:'Structures',data:'DATA',notifBudget:'NotifDPUBOP',infBud40:'INFBUD40'},
   c:{
     S:{id:'id',nom:'Nom',type:'Type',parent:'Parent',region:'Region',chef:'Chef',logo:'Logo',maj:'DateMAJ',sigle:'Sigle'},
     CT:{struct:'Structure',nb:'NombreTotal',cannabis:'KgCannabis',cocaine:'KgCocaine',tabac:'KgTabac',annee:'Annee'},
@@ -889,7 +889,24 @@ const CFG={
   info_tx_nat: 'TauxEquipementMoyenNational'
 },
 
-    FM:{
+    NOTIF:{
+  struct:'Structure',
+  type:'type',
+  bop:'BOP',
+  ae:'AE',
+  cp:'CP',
+  annee:'Annee'
+},
+INFBUD:{
+  struct:'Structure',
+  bop:'BOP',
+  ae:'AE',
+  cp:'CP',
+  annee:'Annee',
+  mois:'Mois',
+  excomptable:'excomptable'
+},
+FM:{
   struct:'Structure',
   type:'TypeMission',
   annee:'Annee',
@@ -1102,6 +1119,25 @@ async function chargerAutresTables() {
       D.vehicules = transformed.vehicules;
       D.informatique = transformed.informatique;
       D.fraisMission = transformed.fraisMission;
+
+  // Charger tables budget
+  try {
+    const notifRaw = await fetchTableGrist('NotifDPUBOP');
+    D.notifBudget = notifRaw || [];
+    console.log('[Budget] NotifDPUBOP:', D.notifBudget.length, 'lignes');
+  } catch(e) {
+    console.warn('[Budget] Erreur NotifDPUBOP:', e);
+    D.notifBudget = [];
+  }
+  
+  try {
+    const infBudRaw = await fetchTableGrist('INFBUD40');
+    D.infBud40 = infBudRaw || [];
+    console.log('[Budget] INFBUD40:', D.infBud40.length, 'lignes');
+  } catch(e) {
+    console.warn('[Budget] Erreur INFBUD40:', e);
+    D.infBud40 = [];
+  }
       
       console.log('[DATA] ✅ Transformé:', {
         rh: D.rh.length,
@@ -2605,6 +2641,7 @@ function renderFiche(s){
     +renderImmobilier(im,cm,s)
     +renderFraisMission(fm,cm)
     +renderInformatique(s,cm)
+    +renderBudget(s,cm)
     +'</div>';
 }
 function renderHeader(s){
@@ -2663,423 +2700,144 @@ function renderContentieux(data,cms,drs){
   const can=data.reduce((s,r)=>s+(r[c.cannabis]||0),0), coc=data.reduce((s,r)=>s+(r[c.cocaine]||0),0), tab=data.reduce((s,r)=>s+(r[c.tabac]||0),0);
   return`<div class="section"><div class="sec-hdr"><span class="ico">⚖️</span><h3>Contentieux${anneeAffichee(data,"Annee")?' <span style="font-size:11px;font-weight:400;opacity:.7;">— '+anneeAffichee(data,"Annee")+'</span>':''}</h3></div><div class="sec-body"><div class="kpi-row"><div class="kpi ${clsN}"><div class="kv">${tot}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Dossiers</div></div><div class="kpi"><div class="kv" style="font-size:15px">${fmtD(can)} kg</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Cannabis</div></div><div class="kpi"><div class="kv" style="font-size:15px">${fmtD(coc)} kg</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Cocaïne</div></div><div class="kpi"><div class="kv" style="font-size:15px">${fmtD(tab)} kg</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Tabac</div></div></div>${drs.length?renderDRBlock(drs,'contentieux'):''}${renderCmt(cm,'contentieux',_curId)}</div></div>`;
 }
-function renderBudget(data,cms){
-  const c=CFG.c.B, cm=cms.find(x=>x[CFG.c.CM.bloc]==='budget');
-  if(!data.length) return secEmpty('💶','Budget',cm,'full','budget');
-  const annee=anneeAffichee(data,'Annee');
-  const types=['Fonctionnement','Investissement','Intervention'];
-  const renderType=(label,rows)=>{
-    if(!rows.length) return '';
-    const r=rows[0];
-    const aen=n(r[c.ae_n]),aed=n(r[c.ae_d]),aec=n(r[c.ae_c]), cpn=n(r[c.cp_n]),cpd=n(r[c.cp_d]),cpc=n(r[c.cp_c]);
-    const pAE=aed?Math.round(aec/aed*100):aen?Math.round(aec/aen*100):0;
-    const pCP=cpd?Math.round(cpc/cpd*100):cpn?Math.round(cpc/cpn*100):0;
-    const cA=pAE>95?'pf-danger':pAE>80?'pf-warn':'pf-ok', cC=pCP>95?'pf-danger':pCP>80?'pf-warn':'pf-ok';
-    return`<div class="sub-title">${label}</div><table class="dt" style="margin-bottom:8px"><thead><tr><th></th><th class="tr">Notifiées</th><th class="tr">Mises à dispo</th><th class="tr">Consommées</th><th class="tr">Taux exec.</th></tr></thead><tbody><tr><td class="tbold">AE</td><td class="tr">${fmt(aen)} €</td><td class="tr">${fmt(aed)} €</td><td class="tr">${fmt(aec)} €</td><td class="tc"><div>${pAE}%</div><div class="prog-bar" style="width:70px;display:inline-block;margin-top:2px"><div class="prog-fill ${cA}" style="width:${Math.min(pAE,100)}%"></div></div></td></tr><tr><td class="tbold">CP</td><td class="tr">${fmt(cpn)} €</td><td class="tr">${fmt(cpd)} €</td><td class="tr">${fmt(cpc)} €</td><td class="tc"><div>${pCP}%</div><div class="prog-bar" style="width:70px;display:inline-block;margin-top:2px"><div class="prog-fill ${cC}" style="width:${Math.min(pCP,100)}%"></div></div></td></tr></tbody></table>`;
-  };
-  // Pas de DR dans le budget (géré au niveau DI)
-  return`<div class="section full"><div class="sec-hdr"><span class="ico">💶</span><h3>Budget${annee?' <span style="font-size:11px;font-weight:400;opacity:.7;">— '+annee+'</span>':''}</h3></div><div class="sec-body">${types.map(t=>renderType(t,data.filter(r=>strVal(r[c.typeb])===t))).join('')}${renderCmt(cm,'budget',_curId)}</div></div>`;
-}
-function renderRH(rhRows,cms,drs,s){
-  const c=CFG.c.RH, cm=cms.find(x=>x[CFG.c.CM.bloc]==='rh');
-  if(!_fBySigle) fBuildIdx();
-  const typeS=strVal(s?s[CFG.c.S.type]:'');
-  const IS_PARENT=HIER_FICHE.TYPES_AVEC_FILLES.has(typeS);
-
-  // Données propres de la structure sélectionnée
-  const own=rhRows&&rhRows.length?rhRows[0]:null;
-
-  // Afficher le bloc même sans données propres (message 'Aucune donnée' pour les DR)
-  const filles=IS_PARENT?fEnfantsDe(s):[];
-  const rhAll=fArr(D.rh||[]);
-  const fillesAvecDonnees=filles.filter(function(f){return rhAll.some(function(r){return n(r[c.struct])===f.id;});});
-  // Masquer uniquement si DI/SCN/Siège sans aucune fille avec données
-  if(IS_PARENT&&!own&&!fillesAvecDonnees.length) return secEmpty('👥','Situation RH',cm,'','rh');
-
-  const annee=own?anneeAffichee(rhRows,'Annee'):'';
-
-  // Valeurs consolidées (propre + filles récursives)
-  const etptAgco = Math.round(fConsoVal(s, rhAll, c.struct, function(r){return n(r[c.etpt_agco]);}));
-  const etptSu   = Math.round(fConsoVal(s, rhAll, c.struct, function(r){return n(r[c.etpt_su]);}));
-  const etptTot  = Math.round(fConsoVal(s, rhAll, c.struct, function(r){return n(r[c.etpt_tot])||n(r[c.etpt_agco])+n(r[c.etpt_su]);}));
-  const ms       = IS_PARENT?Math.ceil(fConsoVal(s,rhAll,c.struct,function(r){return n(r[c.ms]);})):own?Math.ceil(n(own[c.ms])):0;
-
-  // Indicateurs propres uniquement (pas consolidés)
-  const cib  = own&&['DI','Siège','siège','SIEGE'].includes(typeS)?n(own[c.cib]):null;
-  const jf   = own?n(own[c.jf]):null;
-  const abs  = own?n(own[c.abs]):null;
-  const age  = own?n(own[c.age]):null;
-  // Message affiché sous les KPI si DR sans données propres
-  const noDonneesPropres = !own && !IS_PARENT;
-  const mo=(D.moyennes||[])[0]||{};
-  const absN=nPct(mo[CFG.c.MO.abs_n]);
-  const ageN=nPct(mo[CFG.c.MO.age_n]);
-
-  // KPI row
-  const hasDetail=etptAgco>0||etptSu>0;
-  const etptKpi=hasDetail
-    ?`<div class="kpi"><div class="kv">${etptAgco}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">ETPT AGCO</div></div>`
-     +`<div class="kpi"><div class="kv">${etptSu}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">ETPT SU</div></div>`
-     +`<div class="kpi vert"><div class="kv">${etptTot}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">ETPT total${IS_PARENT?' (consolid\u00e9)':''}</div></div>`
-    :`<div class="kpi vert"><div class="kv">${etptTot||'—'}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">ETPT${IS_PARENT?' (consolid\u00e9)':''}</div></div>`;
-
-  const cibKpi=cib?`<div class="kpi"><div class="kv">${cib}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Eff. cibles</div></div>`:'';
-  const msKpi=['DI','DR','Siège','siège','SIEGE'].includes(typeS)&&ms
-    ?`<div class="kpi vert"><div class="kv" style="font-size:13px">${fmt(ms)} €</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Masse salariale${IS_PARENT?' (consolid\u00e9e)':''}</div></div>`:'';
-  const jfKpi=jf?`<div class="kpi"><div class="kv">${fmtD(jf)}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">J. form./agent</div></div>`:'';
-  const absKpi=abs!==null?`<div class="kpi orange"><div class="kv">${abs}</div><div class="kl" style="font-size:${absN?'9.5':'10.5'}px;color:var(--gris2)">${absN?'abs. (nat. '+absN+')':'J. absentéisme'}</div></div>`:'';
-  const ageKpi=age?`<div class="kpi"><div class="kv" style="font-size:12px">${fmtAge(age)}</div><div class="kl" style="font-size:${ageN?'9.5':'10.5'}px;color:var(--gris2)">${ageN?'(nat. '+fmtAge(ageN)+')':'Âge moyen'}</div></div>`:'';
-
-  // Tableau de répartition par fille (DI → DR, DR autonome → ses filles)
-  let repTable='';
-  if(IS_PARENT&&fillesAvecDonnees.length>0){
-    const rhFiltAll=fArr(D.rh||[]);
-    const lignes=fillesAvecDonnees.map(function(f){
-      const rf=rhFiltAll.find(function(r){return n(r[c.struct])===f.id;});
-      if(!rf) return '';
-      const fa=Math.round(n(rf[c.etpt_agco])), fs=Math.round(n(rf[c.etpt_su]));
-      const ft=Math.round(n(rf[c.etpt_tot])||fa+fs);
-      const fms=Math.ceil(n(rf[c.ms]));
-      const fnm=strVal(f[CFG.c.S.nom]||f.Nom||'');
-      const fsig=strVal(f[CFG.c.S.sigle]||f.Sigle||'');
-      return `<tr>
-        <td class="tbold">${fsig||fnm}</td>
-        <td style="font-size:10px;color:var(--gris2)">${fsig?fnm:''}</td>
-        <td class="tr">${fa||'—'}</td>
-        <td class="tr">${fs||'—'}</td>
-        <td class="tr" style="font-weight:700">${ft||'—'}</td>
-        ${['DI','DR','Siège','siège','SIEGE'].includes(typeS)?`<td class="tr">${fms?fmt(fms)+' €':'—'}</td>`:''}
-      </tr>`;
-    }).filter(Boolean).join('');
-    const showMS=['DI','DR','Siège','siège','SIEGE'].includes(typeS);
-    if(lignes){
-      repTable=`<div class="repartition-wrap">
-        <div class="repartition-titre">Répartition par direction fille</div>
-        <table class="repartition-table">
-          <thead><tr>
-            <th>Sigle</th><th>Structure</th>
-            <th class="tr">ETPT AGCO</th><th class="tr">ETPT SU</th><th class="tr">ETPT Total</th>
-            ${showMS?'<th class="tr">Masse sal.</th>':''}
-          </tr></thead>
-          <tbody>${lignes}</tbody>
-          <tr class="rep-total">
-            <td colspan="2">Total consolidé</td>
-            <td class="tr">${etptAgco||'—'}</td>
-            <td class="tr">${etptSu||'—'}</td>
-            <td class="tr">${etptTot||'—'}</td>
-            ${showMS?`<td class="tr">${ms?fmt(ms)+' €':'—'}</td>`:''}
-          </tr>
-        </table>
-      </div>`;
-    }
-  }
-
-  const aucuneDonneeMsg = (!own&&!IS_PARENT)
-    ? '<div class="no-data" style="color:var(--gris3);font-style:italic;padding:8px 0;">Aucune donnée disponible pour cette structure.</div>'
-    : '';
-  return`<div class="section"><div class="sec-hdr"><span class="ico">👥</span><h3>Situation RH${annee?' <span style="font-size:11px;font-weight:400;opacity:.7;">— '+annee+'</span>':''}</h3></div><div class="sec-body">
-    <div class="kpi-row">${etptKpi}${cibKpi}${msKpi}${jfKpi}${absKpi}${ageKpi}</div>
-    ${aucuneDonneeMsg}
-    ${repTable}
-    ${renderCmt(cm,'rh',_curId)}
-  </div></div>`;
-}
-function renderImmobilier(sites,cms,s){
-  const c=CFG.c.IM, cm=cms.find(x=>x[CFG.c.CM.bloc]==='immobilier');
-  if(!_fBySigle) fBuildIdx();
-  const typeS=strVal(s?s[CFG.c.S.type]:'');
-  const IS_PARENT=HIER_FICHE.TYPES_AVEC_FILLES.has(typeS);
-
-  // Sites consolidés : propres + filles récursives
-  let tousSites=sites;
-  if(IS_PARENT){
-    const imAll=D.immobilier||[];
-    const filles=fDescendants(s);
-    const sitesFilles=filles.flatMap(function(f){return imAll.filter(function(r){return n(r[c.struct])===f.id;});});
-    tousSites=[...sites,...sitesFilles];
-  }
-  if(!tousSites.length) return secEmpty('🏛️','Situation Immobilière',cm,'full','immobilier');
-
-  const pub=tousSites.filter(r=>strVal(r[c.occ])==='Domaine public');
-  const bail=tousSites.filter(r=>strVal(r[c.occ])==='Bail privé');
-  const totalM2=tousSites.reduce((s,r)=>s+n(r[c.m2]),0);
-  const totalLoyer=bail.reduce((s,r)=>s+n(r[c.loyer]),0);
-
-  // Pour les DI : liste consolidée avec identification de la structure fille
-  const renderSite=(site, structNom)=>{
-    const structInfo=IS_PARENT&&structNom?`<span style="font-size:9px;color:var(--gris3);margin-left:4px;">[${structNom}]</span>`:'';
-    return `<tr><td class="tbold">${site[c.site]}${structInfo}</td><td class="td-sub">${site[c.adr]}</td><td class="tr">${fmt(n(site[c.m2]))} m²</td><td class="tr">${fmt(n(site[c.cout]))} €</td></tr>`;
-  };
-  const renderSiteBail=(site, structNom)=>{
-    const structInfo=IS_PARENT&&structNom?`<span style="font-size:9px;color:var(--gris3);margin-left:4px;">[${structNom}]</span>`:'';
-    return `<tr><td class="tbold">${site[c.site]}${structInfo}</td><td class="td-sub">${site[c.adr]}</td><td class="tr">${fmt(n(site[c.m2]))} m²</td><td class="tr">${fmt(n(site[c.cout]))} €</td><td class="tr">${fmt(n(site[c.loyer]))} €</td></tr>`;
-  };
-
-  // Résoudre le nom de la structure fille pour chaque site (si DI)
-  function getStructNom(site){
-    if(!IS_PARENT) return '';
-    const stId=n(site[c.struct]);
-    const st=(D.structures||[]).find(function(r){return r.id===stId;});
-    return st?strVal(st[CFG.c.S.sigle]||st[CFG.c.S.nom]||''):'';
-  }
-
-  const pubHtml=pub.length?
-    `<div class="sub-title">Domaine public (${pub.length} site${pub.length>1?'s':''})</div><table class="dt" style="margin-bottom:8px"><thead><tr><th>Site</th><th>Adresse</th><th class="tr">m²</th><th class="tr">Coût/m²</th></tr></thead><tbody>${pub.map(s=>renderSite(s,getStructNom(s))).join('')}</tbody></table>`:'';
-  const bailHtml=bail.length?
-    `<div class="sub-title">Baux privés (${bail.length} bail${bail.length>1?'s':''})</div><table class="dt" style="margin-bottom:8px"><thead><tr><th>Site</th><th>Adresse</th><th class="tr">m²</th><th class="tr">Coût/m²</th><th class="tr">Loyer/an</th></tr></thead><tbody>${bail.map(s=>renderSiteBail(s,getStructNom(s))).join('')}</tbody></table>`:'';
-
-  const titreConsolide=IS_PARENT&&tousSites.length>sites.length?' <span style="font-size:11px;font-weight:400;opacity:.7;">(consolidé)</span>':'';
-
-  return`<div class="section full"><div class="sec-hdr"><span class="ico">🏛️</span><h3>Situation Immobilière${titreConsolide}</h3></div><div class="sec-body">
-    <div class="kpi-row">
-      <div class="kpi"><div class="kv">${tousSites.length}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Sites</div></div>
-      <div class="kpi vert"><div class="kv" style="font-size:14px">${fmt(totalM2)}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">m² occupés</div></div>
-      <div class="kpi"><div class="kv">${pub.length}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Domaine public</div></div>
-      <div class="kpi orange"><div class="kv">${bail.length}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Baux privés</div></div>
-      ${totalLoyer?`<div class="kpi jaune"><div class="kv" style="font-size:13px">${fmt(totalLoyer)} €</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Loyers annuels</div></div>`:''}
-    </div>
-    ${pubHtml}${bailHtml}
-    ${renderCmt(cm,'immobilier',_curId)}
-  </div></div>`;
-}
-function renderVehicules(v,cms,drs,s){
-  const c=CFG.c.VH, cm=cms.find(x=>x[CFG.c.CM.bloc]==='vehicules');
-  if(!_fBySigle) fBuildIdx();
-  const typeS=strVal(s?s[CFG.c.S.type]:'');
-  const IS_PARENT=HIER_FICHE.TYPES_AVEC_FILLES.has(typeS);
-  const vhAll=fArr(D.vehicules||[]);
-
-  // Si pas de données → masquer
-  const filles=IS_PARENT?fEnfantsDe(s):[];
-  const fillesAvecDonnees=filles.filter(function(f){return vhAll.some(function(r){return n(r[c.struct])===f.id;});});
-  if(!v&&!fillesAvecDonnees.length) return secEmpty('🚗','Parc de véhicules',cm,'','vehicules');
-
-  const annee=v?anneeAffichee([v],'Annee'):'';
-  const mo=(D.moyennes||[])[0]||{};
-  const vn=nPct(mo[CFG.c.MO.vet_n])||n(v?v[c.vet_n]:0);
-  const pn=nPct(mo[CFG.c.MO.vpa_n])||n(v?v[c.vpa_n]:0);
-
-  // Valeurs consolidées
-  const nbTot=IS_PARENT?Math.round(fConsoVal(s,vhAll,c.struct,function(r){return n(r[c.nb]);})):v?n(v[c.nb]):0;
-  // Vétusté : moyenne simple des structures avec données
-  const allRows=IS_PARENT?[v].concat(fillesAvecDonnees.map(function(f){return vhAll.find(function(r){return n(r[c.struct])===f.id;});})).filter(Boolean):(v?[v]:[]);
-  const vets=allRows.map(function(r){return n(r[c.vet_s]);}).filter(Boolean);
-  const vs=vets.length?Math.round(vets.reduce(function(a,b){return a+b;},0)/vets.length):0;
-  const ps=v?n(v[c.vpa_s]):0;
-
-  const clsV=vs>vn?'rouge':vs>vn*0.8?'orange':'vert';
-  const vsTag=vs>vn?`<span class="vs-nat vs-bad">▲ +${(vs-vn).toFixed(0)} pts vs nat.</span>`:`<span class="vs-nat vs-ok">▼ ${(vn-vs).toFixed(0)} pts vs nat.</span>`;
-  const psTag=ps>pn?`<span class="vs-nat vs-bad">▲</span>`:`<span class="vs-nat vs-ok">▼</span>`;
-
-  // Tableau filles
-  let repTable='';
-  if(IS_PARENT&&fillesAvecDonnees.length>0){
-    const lignes=fillesAvecDonnees.map(function(f){
-      const rf=vhAll.find(function(r){return n(r[c.struct])===f.id;});
-      if(!rf) return '';
-      const fnb=n(rf[c.nb]), fvs=n(rf[c.vet_s]), fps=n(rf[c.vpa_s]).toFixed(2);
-      const fclsV=fvs>vn?'rouge':fvs>vn*0.8?'orange':'vert';
-      const fnm=strVal(f[CFG.c.S.nom]||''), fsig=strVal(f[CFG.c.S.sigle]||'');
-      return `<tr>
-        <td class="tbold">${fsig||fnm}</td>
-        <td style="font-size:10px;color:var(--gris2)">${fsig?fnm:''}</td>
-        <td class="tr">${fnb||'—'}</td>
-        <td class="tr"><span style="color:var(--${fclsV})">${fvs}%</span></td>
-        <td class="tr">${fps}</td>
-      </tr>`;
-    }).filter(Boolean).join('');
-    if(lignes){
-      repTable=`<div class="repartition-wrap">
-        <div class="repartition-titre">Répartition par direction fille</div>
-        <table class="repartition-table">
-          <thead><tr><th>Sigle</th><th>Structure</th><th class="tr">Nb véhicules</th><th class="tr">Vétusté</th><th class="tr">Véh./agent</th></tr></thead>
-          <tbody>${lignes}</tbody>
-          <tr class="rep-total"><td colspan="2">Total consolidé</td><td class="tr">${nbTot}</td><td class="tr">${vs}%</td><td>—</td></tr>
-        </table></div>`;
-    }
-  }
-
-  return`<div class="section"><div class="sec-hdr"><span class="ico">🚗</span><h3>Parc de véhicules${annee?' <span style="font-size:11px;font-weight:400;opacity:.7;">— '+annee+'</span>':''}</h3></div><div class="sec-body">
-    <div class="kpi-row">
-      <div class="kpi"><div class="kv">${nbTot}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Véhicules${IS_PARENT?' (consolid\u00e9s)':''}</div></div>
-      <div class="kpi ${clsV}"><div class="kv">${vs}%</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Vétusté${IS_PARENT?' moy.':' structure'}</div></div>
-      <div class="kpi"><div class="kv" style="font-size:15px;color:var(--gris2)">${vn}%</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Vétusté nationale</div></div>
-      ${!IS_PARENT&&ps?`<div class="kpi ${ps>pn?'rouge':'vert'}"><div class="kv">${ps.toFixed(2)}</div><div class="kl" style="font-size:10.5px;color:var(--gris2)">Véh./agent ${psTag}</div></div>`:''}
-    </div>
-    <div style="margin:4px 0 8px">${vsTag}</div>
-    ${repTable}
-    ${renderCmt(cm,'vehicules',_curId)}
-  </div></div>`;
-}
-function renderFraisMission(data,cms){
-  const c=CFG.c.FM, cm=cms.find(x=>x[CFG.c.CM.bloc]==='fraisMission');
-  if(!data.length) return secEmpty('✈️','Frais de mission',cm,'full','fraisMission');
-  const types=['Formation','AutresMissions'], labels={'Formation':'Formation','AutresMissions':'Autres missions'};
+function renderBudget(s, cm_list){
+  const c=CFG.c.NOTIF;
+  const cInf=CFG.c.INFBUD;
+  const cm=cm_list.find(x=>x[CFG.c.CM.bloc]==='budget');
   
-  // Préparer données pour graphiques
-  const dataParAnnee = {};
-  data.forEach(r=>{
-    const an = Number(r[c.annee]);
-    const type = strVal(r[c.type]);
-    if(!dataParAnnee[an]) dataParAnnee[an] = {
-      total:0, formation:0, autres:0,
-      transport:0, hebergement:0, repas:0
-    };
-    const mt = n(r[c.mt]);
-    const tr = n(r[c.tr]);
-    const hb = n(r[c.hb]);
-    const rp = n(r[c.rp]);
-    
-    dataParAnnee[an].total += mt;
-    dataParAnnee[an].transport += tr;
-    dataParAnnee[an].hebergement += hb;
-    dataParAnnee[an].repas += rp;
-    
-    if(type === 'Formation') dataParAnnee[an].formation += mt;
-    if(type === 'AutresMissions') dataParAnnee[an].autres += mt;
+  const notifData = D.notifBudget || [];
+  const infBudData = D.infBud40 || [];
+  
+  // Filtrer pour cette structure
+  const infBudStruct = infBudData.filter(r=>r[cInf.struct]===s.id);
+  
+  if(!infBudStruct.length) {
+    return secEmpty('💰','Budget',cm,'full','budget');
+  }
+  
+  const anneeCourante = 2026;
+  const anneesHistoriques = [2022, 2023, 2024, 2025];
+  
+  // Filtrer activité 030200100203 avec CB=51
+  const activiteCode = '030200100203';
+  const lignesActivite = infBudStruct.filter(r=>{
+    const act = r.activite || '';
+    const cb = Number(r.cb);
+    return act === activiteCode && cb === 51;
   });
   
-  const anneesGraph = Object.keys(dataParAnnee).map(Number).sort();
-  let graphHTML = '';
-  
-  if(anneesGraph.length > 0){
-    const svgW=320, svgH=180, pad=40;
-    const barW=45, spacing=(svgW-2*pad)/anneesGraph.length;
-    
-    // Container pour les 2 graphiques côte à côte
-    graphHTML += '<div style="display:flex;gap:16px;margin-bottom:20px;">';
-    
-    // ═══ GRAPHIQUE 1 : Transport / Hébergement / Repas ═══
-    graphHTML += '<div style="flex:1;"><div style="font-size:11px;font-weight:600;color:#2C3E50;margin-bottom:8px;">📊 Répartition par type de frais</div>';
-    graphHTML += '<svg width="100%" height="'+svgH+'" viewBox="0 0 '+svgW+' '+svgH+'" style="border:1px solid #E8EDF2;border-radius:4px;background:#FAFBFC;">';
-    
-    const maxType = Math.max(...anneesGraph.map(a=>dataParAnnee[a].transport + dataParAnnee[a].hebergement + dataParAnnee[a].repas), 1);
-    
-    anneesGraph.forEach((a,i)=>{
-      const x = pad + i*spacing + spacing/2 - barW/2;
-      const tr = dataParAnnee[a].transport;
-      const hb = dataParAnnee[a].hebergement;
-      const rp = dataParAnnee[a].repas;
-      const tot = tr + hb + rp;
-      
-      if(tot > 0){
-        const hTr = (tr / maxType) * (svgH - 60);
-        const hHb = (hb / maxType) * (svgH - 60);
-        const hRp = (rp / maxType) * (svgH - 60);
-        
-        // Transport (bleu)
-        graphHTML += '<rect x="'+x+'" y="'+(svgH-40-hTr-hHb-hRp)+'" width="'+barW+'" height="'+hTr+'" fill="#1351A8"/>';
-        // Hébergement (orange)
-        graphHTML += '<rect x="'+x+'" y="'+(svgH-40-hHb-hRp)+'" width="'+barW+'" height="'+hHb+'" fill="#C05A00"/>';
-        // Repas (vert)
-        graphHTML += '<rect x="'+x+'" y="'+(svgH-40-hRp)+'" width="'+barW+'" height="'+hRp+'" fill="#1A6B3C"/>';
-        
-        // Total au-dessus
-        graphHTML += '<text x="'+(x+barW/2)+'" y="'+(svgH-45-hTr-hHb-hRp)+'" text-anchor="middle" font-size="9" font-weight="600" fill="#2C3E50">'+fmt(tot)+'€</text>';
-      }
-      
-      // Année
-      graphHTML += '<text x="'+(x+barW/2)+'" y="'+(svgH-10)+'" text-anchor="middle" font-size="10" fill="#5A6C7D">'+a+'</text>';
-    });
-    
-    // Légende
-    graphHTML += '<rect x="10" y="152" width="10" height="10" fill="#1351A8"/><text x="23" y="161" font-size="9" fill="#2C3E50">Transport</text>';
-    graphHTML += '<rect x="80" y="152" width="10" height="10" fill="#C05A00"/><text x="93" y="161" font-size="9" fill="#2C3E50">Héberg.</text>';
-    graphHTML += '<rect x="145" y="152" width="10" height="10" fill="#1A6B3C"/><text x="158" y="161" font-size="9" fill="#2C3E50">Repas</text>';
-    
-    graphHTML += '</svg></div>';
-    
-    // ═══ GRAPHIQUE 2 : Formation / Autres missions ═══
-    graphHTML += '<div style="flex:1;"><div style="font-size:11px;font-weight:600;color:#2C3E50;margin-bottom:8px;">📊 Formation vs Autres missions</div>';
-    graphHTML += '<svg width="100%" height="'+svgH+'" viewBox="0 0 '+svgW+' '+svgH+'" style="border:1px solid #E8EDF2;border-radius:4px;background:#FAFBFC;">';
-    
-    const maxMission = Math.max(...anneesGraph.map(a=>dataParAnnee[a].formation + dataParAnnee[a].autres), 1);
-    
-    anneesGraph.forEach((a,i)=>{
-      const x = pad + i*spacing + spacing/2 - barW/2;
-      const form = dataParAnnee[a].formation;
-      const autr = dataParAnnee[a].autres;
-      const tot = form + autr;
-      
-      if(tot > 0){
-        const hForm = (form / maxMission) * (svgH - 60);
-        const hAutr = (autr / maxMission) * (svgH - 60);
-        
-        // Formation (vert)
-        graphHTML += '<rect x="'+x+'" y="'+(svgH-40-hForm-hAutr)+'" width="'+barW+'" height="'+hForm+'" fill="#28A745"/>';
-        // Autres (orange)
-        graphHTML += '<rect x="'+x+'" y="'+(svgH-40-hAutr)+'" width="'+barW+'" height="'+hAutr+'" fill="#FF8C00"/>';
-        
-        // Total au-dessus
-        graphHTML += '<text x="'+(x+barW/2)+'" y="'+(svgH-45-hForm-hAutr)+'" text-anchor="middle" font-size="9" font-weight="600" fill="#2C3E50">'+fmt(tot)+'€</text>';
-      }
-      
-      // Année
-      graphHTML += '<text x="'+(x+barW/2)+'" y="'+(svgH-10)+'" text-anchor="middle" font-size="10" fill="#5A6C7D">'+a+'</text>';
-    });
-    
-    // Légende
-    graphHTML += '<rect x="10" y="152" width="10" height="10" fill="#28A745"/><text x="23" y="161" font-size="9" fill="#2C3E50">Formation</text>';
-    graphHTML += '<rect x="85" y="152" width="10" height="10" fill="#FF8C00"/><text x="98" y="161" font-size="9" fill="#2C3E50">Autres</text>';
-    
-    graphHTML += '</svg></div>';
-    
-    graphHTML += '</div>'; // Fin du container flex
+  if(!lignesActivite.length) {
+    return secEmpty('💰','Budget - Activité '+activiteCode,cm,'full','budget');
   }
   
-  const renderType=(type)=>{
-    const rows=data.filter(r=>strVal(r[c.type])===type).sort((a,b)=>Number(a[c.annee])-Number(b[c.annee]));
-    if(!rows.length) return '';
-    const tableRows=rows.map(r=>{
-      const mt=n(r[c.mt]),tr=n(r[c.tr]),hb=n(r[c.hb]),rp=n(r[c.rp]);
-      const an=Number(r[c.annee]);
-      
-      // Calculer ETPT total (parent + filles)
-      let etptTotal = 0;
-      const rhAnnee = (D.rh||[]).filter(rh=>Number(rh.Annee)===an);
-      
-      // ETPT de la structure courante
-      const idStruct = r[c.struct]; // ID de la structure de la ligne frais mission
-      const rhCur = rhAnnee.find(rh=>rh.Structure===idStruct);
-      if(rhCur) {
-        etptTotal += n(rhCur.ETPTtotal);
-      }
-      
-      // ETPT des filles (si c'est une DI/SCN)
-      if(_fById && _fById[idStruct]){
-        const filles = fEnfantsDR(_fById[idStruct]);
-        filles.forEach(f=>{
-          const rhF = rhAnnee.find(rh=>rh.Structure===f.id);
-          if(rhF) etptTotal += n(rhF.ETPTtotal);
-        });
-      }
-      
-      const parEtpt = etptTotal > 0 ? Math.round(mt / etptTotal) : 0;
-      
-      return`<tr>
-        <td style="padding:3px 6px;font-size:11px;font-weight:700;white-space:nowrap;">${an}</td>
-        <td style="padding:3px 8px;text-align:right;font-weight:700;white-space:nowrap;">${fmt(mt)} €</td>
-        <td style="padding:3px 6px;text-align:right;font-size:10.5px;color:#1351A8;white-space:nowrap;">${fmt(tr)} €</td>
-        <td style="padding:3px 6px;text-align:right;font-size:10.5px;color:#C05A00;white-space:nowrap;">${fmt(hb)} €</td>
-        <td style="padding:3px 6px;text-align:right;font-size:10.5px;color:#1A6B3C;white-space:nowrap;">${fmt(rp)} €</td>
-        <td style="padding:3px 6px;text-align:right;font-size:10.5px;color:#0066CC;font-weight:600;white-space:nowrap;">${fmt(parEtpt)} €</td>
-      </tr>`;
-    }).join('');
-    return`<div class="sub-title">${labels[type]}</div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
-      <thead><tr>
-        <th style="padding:3px 6px;font-size:9.5px;color:var(--gris3);font-weight:700;text-align:left;border-bottom:1px solid var(--bord);">Année</th>
-        <th style="padding:3px 8px;font-size:9.5px;color:var(--gris3);font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">Total</th>
-        <th style="padding:3px 6px;font-size:9.5px;color:#1351A8;font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">Transport</th>
-        <th style="padding:3px 6px;font-size:9.5px;color:#C05A00;font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">Hébergement</th>
-        <th style="padding:3px 6px;font-size:9.5px;color:#1A6B3C;font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">Repas</th>
-        <th style="padding:3px 6px;font-size:9.5px;color:#0066CC;font-weight:700;text-align:right;border-bottom:1px solid var(--bord);">Par ETPT</th>
-      </tr></thead>
-      <tbody>${tableRows}</tbody>
-    </table>`;
+  // Récupérer le libellé long
+  const libelleLong = lignesActivite[0].libactivitelong || 'Activité '+activiteCode;
+  
+  // Calculer consommation historique (Décembre = mois 12)
+  const consoHistorique = {};
+  anneesHistoriques.forEach(an=>{
+    const lignesDec = lignesActivite.filter(r=>Number(r[cInf.annee])===an && r[cInf.mois]==='12');
+    consoHistorique[an] = {
+      ae: lignesDec.reduce((sum,r)=>sum+n(r[cInf.ae]), 0),
+      cp: lignesDec.reduce((sum,r)=>sum+n(r[cInf.cp]), 0)
+    };
+  });
+  
+  // Notifications véhicule année courante
+  const notifsVehicule = notifData.filter(r=>
+    r[c.struct]===s.id && 
+    r[c.type]==='vehicule' && 
+    Number(r[c.annee])===anneeCourante
+  );
+  const notifVehicule = {
+    ae: notifsVehicule.reduce((sum,r)=>sum+n(r[c.ae]), 0),
+    cp: notifsVehicule.reduce((sum,r)=>sum+n(r[c.cp]), 0)
   };
-  return`<div class="section full"><div class="sec-hdr"><span class="ico">✈️</span><h3>Frais de mission — 4 ans</h3></div><div class="sec-body">${graphHTML}${types.map(t=>renderType(t)).join('')}<div class="legend"><div class="leg-item"><div class="leg-dot" style="background:#1351A8"></div>Transport</div><div class="leg-item"><div class="leg-dot" style="background:#C05A00"></div>Hébergement</div><div class="leg-item"><div class="leg-dot" style="background:#1A6B3C"></div>Repas</div></div>${renderCmt(cm,'fraisMission',_curId)}</div></div>`;
+  
+  // Consommation année courante (dernier mois disponible)
+  const lignesAnneeCourante = lignesActivite.filter(r=>Number(r[cInf.annee])===anneeCourante);
+  const moisDisponibles = [...new Set(lignesAnneeCourante.map(r=>r[cInf.mois]))].sort();
+  const dernierMois = moisDisponibles[moisDisponibles.length-1] || '01';
+  
+  const lignesDernierMois = lignesAnneeCourante.filter(r=>r[cInf.mois]===dernierMois);
+  const consoAnneeCourante = {
+    ae: lignesDernierMois.reduce((sum,r)=>sum+n(r[cInf.ae]), 0),
+    cp: lignesDernierMois.reduce((sum,r)=>sum+n(r[cInf.cp]), 0),
+    mois: dernierMois
+  };
+  
+  let html = `<div class="section full"><div class="sec-hdr"><span class="ico">💰</span><h3>Budget — Véhicules</h3></div><div class="sec-body">`;
+  
+  // Titre avec code et libellé
+  html += `<div style="font-size:11px;color:#4A5A6A;margin-bottom:12px;"><strong>${activiteCode}</strong> — ${libelleLong}</div>`;
+  
+  // Tableau
+  html += '<table style="width:100%;border-collapse:collapse;"><thead><tr>';
+  html += '<th style="padding:4px 8px;font-size:9.5px;color:var(--gris3);font-weight:700;text-align:left;border-bottom:1px solid var(--bord);">Indicateur</th>';
+  
+  // Colonnes historiques
+  anneesHistoriques.forEach(an=>{
+    html += `<th colspan="2" style="padding:4px 8px;font-size:9.5px;color:var(--gris3);font-weight:700;text-align:center;border-bottom:1px solid var(--bord);">${an}</th>`;
+  });
+  
+  // Colonnes année courante
+  html += `<th colspan="2" style="padding:4px 8px;font-size:9.5px;color:#0066CC;font-weight:700;text-align:center;border-bottom:1px solid var(--bord);">${anneeCourante} Notif.</th>`;
+  html += `<th colspan="2" style="padding:4px 8px;font-size:9.5px;color:#28A745;font-weight:700;text-align:center;border-bottom:1px solid var(--bord);">${anneeCourante} Conso (${dernierMois})</th>`;
+  html += '</tr>';
+  
+  // Sous-headers AE/CP
+  html += '<tr>';
+  html += '<th style="padding:2px 8px;font-size:8px;color:var(--gris3);border-bottom:1px solid var(--bord);"></th>';
+  anneesHistoriques.forEach(an=>{
+    html += '<th style="padding:2px 4px;font-size:8px;color:var(--gris3);text-align:right;border-bottom:1px solid var(--bord);">AE</th>';
+    html += '<th style="padding:2px 4px;font-size:8px;color:var(--gris3);text-align:right;border-bottom:1px solid var(--bord);">CP</th>';
+  });
+  html += '<th style="padding:2px 4px;font-size:8px;color:#0066CC;text-align:right;border-bottom:1px solid var(--bord);">AE</th>';
+  html += '<th style="padding:2px 4px;font-size:8px;color:#0066CC;text-align:right;border-bottom:1px solid var(--bord);">CP</th>';
+  html += '<th style="padding:2px 4px;font-size:8px;color:#28A745;text-align:right;border-bottom:1px solid var(--bord);">AE</th>';
+  html += '<th style="padding:2px 4px;font-size:8px;color:#28A745;text-align:right;border-bottom:1px solid var(--bord);">CP</th>';
+  html += '</tr></thead><tbody>';
+  
+  // Ligne de données
+  html += '<tr>';
+  html += '<td style="padding:4px 8px;font-size:10.5px;font-weight:600;">Consommation</td>';
+  
+  // Historique
+  anneesHistoriques.forEach(an=>{
+    const conso = consoHistorique[an];
+    html += `<td style="padding:4px 4px;text-align:right;font-size:10px;">${fmt(conso.ae)} €</td>`;
+    html += `<td style="padding:4px 4px;text-align:right;font-size:10px;">${fmt(conso.cp)} €</td>`;
+  });
+  
+  // Notification
+  html += `<td style="padding:4px 4px;text-align:right;font-size:10px;color:#0066CC;font-weight:600;">${fmt(notifVehicule.ae)} €</td>`;
+  html += `<td style="padding:4px 4px;text-align:right;font-size:10px;color:#0066CC;font-weight:600;">${fmt(notifVehicule.cp)} €</td>`;
+  
+  // Consommation année courante
+  const tauxAE = notifVehicule.ae > 0 ? Math.round(consoAnneeCourante.ae / notifVehicule.ae * 100) : 0;
+  const tauxCP = notifVehicule.cp > 0 ? Math.round(consoAnneeCourante.cp / notifVehicule.cp * 100) : 0;
+  
+  html += `<td style="padding:4px 4px;text-align:right;font-size:10px;color:#28A745;font-weight:600;">${fmt(consoAnneeCourante.ae)} €</td>`;
+  html += `<td style="padding:4px 4px;text-align:right;font-size:10px;color:#28A745;font-weight:600;">${fmt(consoAnneeCourante.cp)} €</td>`;
+  html += '</tr>';
+  
+  // Ligne taux (seulement pour année courante)
+  html += '<tr>';
+  html += '<td style="padding:4px 8px;font-size:10.5px;font-weight:600;">Taux consommation</td>';
+  anneesHistoriques.forEach(an=>{
+    html += '<td colspan="2" style="padding:4px 4px;text-align:center;color:#999;">—</td>';
+  });
+  html += '<td colspan="2" style="padding:4px 4px;text-align:center;color:#999;">—</td>';
+  html += `<td style="padding:4px 4px;text-align:right;font-size:10px;color:${tauxAE>90?'#DC3545':tauxAE>70?'#FFA500':'#28A745'};font-weight:600;">${tauxAE}%</td>`;
+  html += `<td style="padding:4px 4px;text-align:right;font-size:10px;color:${tauxCP>90?'#DC3545':tauxCP>70?'#FFA500':'#28A745'};font-weight:600;">${tauxCP}%</td>`;
+  html += '</tr>';
+  
+  html += '</tbody></table>';
+  html += renderCmt(cm,'budget',_curId);
+  html += '</div></div>';
+  return html;
 }
+
 function renderInformatique(s, cm_list){
   
   const c=CFG.c.IT;
