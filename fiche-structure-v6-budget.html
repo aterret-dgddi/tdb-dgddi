@@ -3102,6 +3102,11 @@ function renderBudget(s, cm_list){
   
   console.log('[Budget] Structure:', s.id, s.Sigle);
   console.log('[Budget] infBud40 total:', infBudData.length);
+  if(infBudData.length > 0) {
+    console.log('[Budget] Exemple ligne INFBUD40:', infBudData[0]);
+    console.log('[Budget] Colonnes disponibles:', Object.keys(infBudData[0]));
+    console.log('[Budget] Colonne Structure dans CFG:', cInf.struct);
+  }
   console.log('[Budget] Filtré pour structure:', infBudStruct.length);
   if(infBudStruct.length > 0) {
     console.log('[Budget] Exemple ligne:', infBudStruct[0]);
